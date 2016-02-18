@@ -1,0 +1,13 @@
+info:
+  component: Config Server
+spring:
+  application:
+    name: fs-configserver
+  cloud:
+    config:
+      server:
+        git:
+#          uri: file:${CONF_PATH}
+          uri: git@github.com:freestrings/config-repo.git
+server:
+  port: 8888

@@ -1,0 +1,2 @@
+rootProject.name = 'multidatasource-with-cloudconfig'
+include 'core', 'web'

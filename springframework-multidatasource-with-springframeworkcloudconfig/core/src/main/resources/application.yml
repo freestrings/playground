@@ -1,0 +1,11 @@
+spring:
+  main:
+    web-environment: false
+    banner-mode: "off"
+  jpa:
+    database: MYSQL
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
+    hibernate:
+      generate-ddl: false
+      ddl-auto: update
+      show-sql: true
