@@ -1,0 +1,33 @@
+fs:
+  atomikos:
+    datasource:
+      one:
+        unique-resource-name: dataSourceOne
+        max-pool-size: 5
+        borrow-connection-timeout: 10000
+        xa-data-source-class-name: com.mysql.jdbc.jdbc2.optional.MysqlXADataSource
+        xa-properties:
+          user: root
+          password: root
+          URL: jdbc:mysql://localhost:3308/testA?useUnicode=true&characterEncoding=utf8&pinGlobalTxToPhysicalConnection=true
+      two:
+        unique-resource-name: dataSourceTwo
+        max-pool-size: 5
+        borrow-connection-timeout: 10000
+        xa-data-source-class-name: com.mysql.jdbc.jdbc2.optional.MysqlXADataSource
+        xa-properties:
+          user: root
+          password: root
+          URL: jdbc:mysql://localhost:3308/testB?useUnicode=true&characterEncoding=utf8&pinGlobalTxToPhysicalConnection=true
+
+spring:
+  jpa.properties:
+    hibernate:
+      dialect: org.hibernate.dialect.MySQL5InnoDBDialect
+      show_sql: true
+      transaction.jta.platform: fs.AtomikosJtaPlatform
+      hbm2ddl.auto: create
+
+#logging.level:
+#   com.atomikos: DEBUG
+#   springframework: DEBUG
