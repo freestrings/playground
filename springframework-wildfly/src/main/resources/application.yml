@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    jndi-name: java:jboss/datasources/ExampleDS
+
+management:
+  context-path: /manage
+  security.enabled: true
+
+security:
+  basic.enabled: true
+  user:
+    name: admin
+    password: admin
