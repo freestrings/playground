@@ -2,6 +2,8 @@ package fs;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 import java.util.Properties;
 import java.util.Timer;
@@ -9,6 +11,8 @@ import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class HelloProducer {
+
+    static DateTimeFormatter DTF = DateTimeFormat.forPattern("k시m분s초");
 
     static class ProducerRunner extends TimerTask {
 
@@ -26,8 +30,11 @@ public class HelloProducer {
         @Override
         public void run() {
             count.getAndIncrement();
-            producer.send(new ProducerRecord<>("my-topics", Integer.toString(count.get()), "value"));
-            System.out.printf("Sent: %d%n", count.get());
+            for (int i = 0; i < 100; i++) {
+                String time = DTF.print(System.currentTimeMillis()) + i;
+                producer.send(new ProducerRecord<>("my-topics", Integer.toString(count.get()), time));
+                System.out.printf("Sent: (%d) %s%n", count.get(), time);
+            }
         }
 
         public void shutdown() {
@@ -42,18 +49,18 @@ public class HelloProducer {
         timer.schedule(producerRunner, 0, 3000);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
+
             @Override
             public void run() {
                 timer.cancel();
                 producerRunner.shutdown();
                 try {
-                    Thread.sleep(3000);
+                    Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
+
         });
-
-
     }
 }
