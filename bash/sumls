@@ -1,0 +1,15 @@
+declare -i COUNT=0 # declare는 변수 타입을 지정. -i는 정수
+
+while read PREM LN USR GRP SIZ MON DAY YEAR FILENAME
+do
+    COUNT+=1
+    echo "File '$FILENAME'" is $SIZ byte long.
+    let TOTAL+=SIZ
+#let "TOTAL += SIZ" # 쌍따옴표는 공백문제를 해결해 줌
+    (( SUM+=SIZ ))
+    ALL=$((ALL+SIZ))
+done
+
+echo "TOTAL:" $TOTAL byte long
+echo "SUM:" $SUM
+echo "ALL:" $ALL

@@ -1,0 +1,4 @@
+for FN in *.sh
+do
+    echo $FN
+done

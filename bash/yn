@@ -1,0 +1,32 @@
+#read -p "Answer :" ANS
+ANS="$1"
+
+#case "$ANS" in
+#    yes) echo "ok"
+#        ;;
+#    no) echo "negative"
+#        ;;
+#    maybe) echo "maybe"
+#        exit 1
+#        ;;
+#esac
+
+#case "$ANS" in
+#    y*) echo "ok"
+#        ;;
+#    n*) echo "negative"
+#        ;;
+#    *) echo "maybe"
+#        exit 1
+#        ;;
+#esac
+
+case $ANS in
+    (*.gif) echo "gif"
+        ;;
+    *.jpg | *.JPEG) echo "jpg"
+        ;;
+    *) echo "woops"
+        exit 1
+        ;;
+esac 

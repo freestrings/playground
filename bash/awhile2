@@ -1,0 +1,4 @@
+while ls -l | tail +2 | cut -c2-
+do
+    echo $?
+done

@@ -1,0 +1,9 @@
+#for (( i = 0 ; i <= 9 ; i++))
+#do
+##echo $i
+#    FN=0${i}
+#    echo $FN
+##ls $FN
+#done
+cd /tmp 2>/dev/null || { echo cd failed ; exit 1; }
+echo continuing on

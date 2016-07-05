@@ -1,0 +1,23 @@
+PIC=abba
+echo $PIC
+echo ${PIC}
+echo ${PIC%a}
+echo ${PIC%?}
+echo ${PIC%b*}
+echo ${PIC%%b*} # %% 는 largest match
+
+
+echo $SHELL
+echo ${SHELL/bin/zsh}
+
+VAR=$1
+ANS=""
+echo "Argument length : ${#VAR}"
+
+for (( i=0 ; i<${#VAR} ; i++ ))
+do
+    echo $i ":" ${VAR:$i:1}
+    ANS="$ANS${VAR:$i:1}$ANS"
+done
+echo $ANS
+

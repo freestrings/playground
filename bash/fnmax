@@ -1,0 +1,38 @@
+function max()
+{
+    if (( $1 > MAX ))
+    then
+            MAX=$1
+    fi
+}
+
+
+# -rw-r--r--    1   freestrings staff   138 Jan 1 10:30 fn
+#   $1          $2      $3        $4     $5  $6 $7  $8  $9
+function lsparse()
+{
+    if (( $# < 0 ))
+    then
+        SIZ=-1
+    else
+        SIZ=$5
+    fi
+}
+
+#declare -i CNT
+#while read num
+#do
+#    let CNT++
+#    max $num
+#done
+
+declare -i CNT MAX=-1
+while read lsline
+do
+    let CNT++
+    lsparse $lsline
+    max $SIZ
+done
+
+printf "largest of %d numbers was: %d\n" $CNT $MAX
+

@@ -1,0 +1,44 @@
+version: '2'
+services:
+  zk1:
+    image: freestrings/zookeeper
+    ports:
+      - "2181:2181"
+      - "2888"
+      - "3888"
+    environment:
+      ZK_MYID: 1
+      ZK_DATA_DIR: /zookeeper
+      # ZK_SERVER.1: zk1
+      # ZK_SERVER.2: zk2
+      # ZK_SERVER.3: zk3
+    volumes:
+      - ./zk1:/zookeeper
+  # zk2:
+  #   image: freestrings/zookeeper
+  #   ports:
+  #     - "2181:2181"
+  #     - "2888"
+  #     - "3888"
+  #   environment:
+  #     ZK_MYID: 2
+  #     ZK_DATA_DIR: /zookeeper
+  #     ZK_SERVER.1: zk1
+  #     ZK_SERVER.2: zk2
+  #     ZK_SERVER.3: zk3
+  #   volumes:
+  #     - ./zk2:/zookeeper
+  # zk3:
+  #   image: freestrings/zookeeper
+  #   ports:
+  #     - "2181:2181"
+  #     - "2888"
+  #     - "3888"
+  #   environment:
+  #     ZK_MYID: 3
+  #     ZK_DATA_DIR: /zookeeper
+  #     ZK_SERVER.1: zk1
+  #     ZK_SERVER.2: zk2
+  #     ZK_SERVER.3: zk3
+  #   volumes:
+  #     - ./zk3:/zookeeper   

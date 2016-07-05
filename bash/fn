@@ -1,0 +1,25 @@
+function itasca() {
+    echo inside $0 $1 $2
+}
+
+A=123
+
+#itasca() {
+#    echo inside
+#}
+
+#function itasca()
+#(
+# echo $A + 1
+#)
+
+#function itasca()
+#((
+#    echo $A + 2 
+#))
+
+echo before $0 $1
+
+itasca 512 all
+
+echo after $1 $2

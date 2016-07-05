@@ -1,0 +1,4 @@
+while read PERM LN USR GRP SIZ MON DAY YEAR FILENAME
+do
+    echo $FILENAME
+done

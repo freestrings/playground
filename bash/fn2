@@ -1,0 +1,36 @@
+# bash 4
+# ABC=-5
+# VN=ABC
+# so $VN==> "ABC"
+# and ${!VN} ==> ${ABC} ==> -5
+
+#function abs ()
+#{
+#    absnum=$1
+#    if (( absnum < 0 ))
+#    then
+#       let absnum=0-$absnum
+#    fi
+#}
+
+#for num
+#do
+#    abs $num
+#    echo "ABS($num) = $absnum"
+#done
+
+function abs ()
+{
+    local VN=$1
+    if (( ${!VN} < 0 ))
+    then
+        let ${VN}=0-${!VN}
+    fi
+}
+
+for num
+do
+    printf "ABS($num) = "
+    abs num # 값이 아니라 변수명을 넘겨야..
+    echo "$num"
+done

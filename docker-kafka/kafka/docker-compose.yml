@@ -1,0 +1,46 @@
+version: '2'
+services:
+  zookeeper:
+    image: freestrings/zookeeper
+    ports:
+      - "2181:2181"
+      - "2888"
+      - "3888"
+    environment:
+      ZK_MYID: 1
+      ZK_DATA_DIR: /zookeeper
+    volumes:
+      - ./zookeeper:/zookeeper
+  kafka1:
+    build: .
+    ports:
+      - "9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LOG_DIRS: /kafka/kafka-logs
+      KAFKA_ADVERTISED_LISTENERS: plaintext://0.0.0.0:9092
+    volumes:
+      - ./kafka1:/kafka
+  kafka2:
+    build: .
+    ports:
+      - "9092"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LOG_DIRS: /kafka/kafka-logs
+      KAFKA_ADVERTISED_LISTENERS: plaintext://0.0.0.0:9092
+    volumes:
+      - ./kafka2:/kafka
+  kafka3:
+    build: .
+    ports:
+      - "9092"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LOG_DIRS: /kafka/kafka-logs
+      KAFKA_ADVERTISED_LISTENERS: plaintext://0.0.0.0:9092
+    volumes:
+      - ./kafka3:/kafka
