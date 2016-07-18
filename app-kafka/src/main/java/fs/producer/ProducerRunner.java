@@ -18,6 +18,10 @@ public class ProducerRunner {
     protected final Map<String, Object> addtionalProperties;
     protected final KafkaProducer<String, String> producer;
 
+    public ProducerRunner() {
+        this(new Object[]{});
+    }
+
     public ProducerRunner(Object[]... properties) {
         Map<String, Object> props = new HashMap();
         props.put("bootstrap.servers", "localhost:9092");
