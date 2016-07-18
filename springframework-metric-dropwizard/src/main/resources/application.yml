@@ -1,0 +1,4 @@
+graphite:
+  prefix: freestrings_node1 # 이거,, 하드코딩 밖에 안되남?
+  url: http://localhost
+  port: 2003

@@ -1,0 +1,2 @@
+spring.application.name: eureka-client-n
+server.port: 8081
