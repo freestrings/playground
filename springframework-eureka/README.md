@@ -1,26 +1,20 @@
 # Build Docker Images
 
 ```
-mvn clean package
-
-cd eureka-server
-docker build -t eureka-server .
-
-cd ../eureka-client
-docker build -t eureka-client .
+mvn clean package docker:build
 ```
 
 # Start Discovery Server
 
 ```
-docker run -it --rm --name eureka-server -p 8761:8761 eureka-server
+docker run -it --rm --name eureka-server -p 8761:8761 freestrings/eureka-server
 ```
 
 # Start Eureka Client
 
 ```
-docker run -it --rm --name eureka-client1 --link eureka-server -p 9990:8080 eureka-client
-docker run -it --rm --name eureka-client2 --link eureka-server -p 9991:8080 eureka-client
+docker run -it --rm --name eureka-client1 --link eureka-server -p 9990:8080 freestrings/eureka-client
+docker run -it --rm --name eureka-client2 --link eureka-server -p 9991:8080 freestrings/eureka-client
 ```
 
 # Check Apps

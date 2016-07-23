@@ -10,7 +10,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @EnableDiscoveryClient
 @SpringBootApplication
@@ -39,5 +43,13 @@ class ServiceInstanceRestController {
         );
 
         return instances;
+    }
+
+    @RequestMapping("/myenv")
+    public Map<String, String> hostaddress() throws UnknownHostException {
+        HashMap map = new HashMap();
+        map.put("hostaddress", InetAddress.getLocalHost().getHostAddress());
+        map.put("hostname", InetAddress.getLocalHost().getHostName());
+        return map;
     }
 }

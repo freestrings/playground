@@ -1,4 +1,6 @@
-spring.application.name: eureka-client
+spring:
+  application:
+    name: ribbon-client
 
 eureka:
   client:
@@ -8,7 +10,3 @@ eureka:
     metadataMap:
       instanceId: ${spring.application.name}:${random.value}
     preferIpAddress: true
-
-server.tomcat.accesslog:
-  enabled: true
-  directory: /tmp/logs
