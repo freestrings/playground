@@ -1,6 +1,6 @@
 spring:
   application:
-    name: ribbon-client
+    name: zuulserver
 
 eureka:
   client:
