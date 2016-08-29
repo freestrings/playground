@@ -23,6 +23,7 @@ targetCompatibility = 1.8
 dependencies {
     compile("org.springframework.boot:spring-boot-starter")
     compile("org.springframework.boot:spring-boot-starter-aop")
+    compile("org.springframework.boot:spring-boot-starter-web")
     compile("io.reactivex:rxjava:1.1.1")
     compile('com.netflix.hystrix:hystrix-core:1.5.1')
     compile("org.projectlombok:lombok:1.16.8")

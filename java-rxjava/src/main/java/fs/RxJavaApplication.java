@@ -4,39 +4,80 @@ import com.netflix.hystrix.HystrixCommand;
 import com.netflix.hystrix.HystrixEventType;
 import com.netflix.hystrix.HystrixRequestLog;
 import com.netflix.hystrix.strategy.concurrency.HystrixRequestContext;
+import fs.async.RestCall;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.Banner;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationListener;
 import org.springframework.util.Assert;
 import rx.Observer;
 
-import javax.annotation.PostConstruct;
-import java.util.Stack;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 @SpringBootApplication
-public class RxJavaApplication {
+public class RxJavaApplication implements ApplicationListener<ApplicationReadyEvent> {
 
     public static void main(String... args) {
         new SpringApplicationBuilder(RxJavaApplication.class)
                 .bannerMode(Banner.Mode.OFF)
                 .build()
-                .run(args);
+                .run(args)
+                .close()
+        ;
     }
 
-    @PostConstruct
-    public void run() {
+    @Autowired
+    private RestCall restCall;
+
+    @Override
+    public void onApplicationEvent(ApplicationReadyEvent event) {
         try {
             hystrixCommand();
-            hystrixObserverCommand();
-            hystrixCacheCommand();
-            hystrixCollapseCommand();
-            hystrixObservableErrorCommand();
-            hystrixPrimarySecondaryCommand();
         } catch (Exception e) {
             e.printStackTrace();
         }
+        hystrixObserverCommand();
+        hystrixCacheCommand();
+        try {
+            hystrixCollapseCommand();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        hystrixObservableErrorCommand();
+        hystrixPrimarySecondaryCommand();
+        streamAsyc();
+    }
+
+    private void streamAsyc() {
+        long time = System.currentTimeMillis();
+        List<Integer> lists = Arrays.asList(1, 2);
+        lists.forEach(x -> {
+            String call = restCall.call(String.valueOf(x)).getBody();
+            System.out.format("%s : %s\n", x, call);
+        });
+        System.out.println(System.currentTimeMillis() - time);
+
+        time = System.currentTimeMillis();
+        lists.stream().parallel()
+                .map(x -> restCall.call(String.valueOf(x)).getBody())
+                .collect(Collectors.toList())
+                .forEach(System.out::println);
+        System.out.println(System.currentTimeMillis() - time);
+
+        time = System.currentTimeMillis();
+        lists.parallelStream()
+                .map(x -> restCall.call(String.valueOf(x)).getBody())
+                .collect(Collectors.toList())
+                .forEach(System.out::println);
+        System.out.println(System.currentTimeMillis() - time);
     }
 
     private void hystrixPrimarySecondaryCommand() {
