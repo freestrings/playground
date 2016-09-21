@@ -34,14 +34,13 @@ curl -s http://localhost:9993/eureka-client/myenv | python -m json.tool
     "hostname": "a5279888f1bc"
 }
 
+# ignored patterns
 curl -s http://localhost:9993/ribbon-client/yourenv | python -m json.tool
 {
-    "hostaddress": "172.17.0.3",
-    "hostname": "a5279888f1bc"
-}
-curl -s http://localhost:9993/ribbon-client/yourenv | python -m json.tool
-{
-    "hostaddress": "172.17.0.4",
-    "hostname": "a8bf881cbd33"
+    "error": "Not Found",
+    "message": "No message available",
+    "path": "/ribbon-client/yourenv",
+    "status": 404,
+    "timestamp": 1469363058764
 }
 ```

@@ -10,7 +10,12 @@ eureka:
     metadataMap:
       instanceId: ${spring.application.name}:${random.value}
     preferIpAddress: true
+  healthcheck:
+        enabled: true
 
 server.tomcat.accesslog:
   enabled: true
   directory: /tmp/logs
+
+zuul:
+  ignoredPatterns: "/ribbon-client/**"
