@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Configuration;
 public class BatchForMessageA {
 
     @Autowired
-    private ServiceGateway gateway;
+    private ServiceGateway serviceGateway;
 
     @Autowired
     private JobBuilderFactory jobBuilderFactory;
@@ -54,8 +54,8 @@ public class BatchForMessageA {
             @Override
             protected MessageA readMessage() {
                 print("read A");
-                MessageA a = gateway.getA("");
-                print("read A done");
+                MessageA a = serviceGateway.getA("");
+                print("read A done:" + a.toString());
                 return a;
             }
         };
