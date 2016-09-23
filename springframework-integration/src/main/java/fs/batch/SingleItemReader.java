@@ -1,4 +1,4 @@
-package fs;
+package fs.batch;
 
 import org.springframework.batch.item.ItemReader;
 
@@ -7,7 +7,7 @@ import org.springframework.batch.item.ItemReader;
  *
  * @param <T>
  */
-public abstract class GatewayReader<T> implements ItemReader<T> {
+public abstract class SingleItemReader<T> implements ItemReader<T> {
 
     private boolean flush = false;
 

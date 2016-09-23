@@ -1,0 +1,12 @@
+spring.batch:
+  # 어플리케이션이 뜨면서 바로 배치가 실행되는 것을 방지
+  job.enabled: false
+
+fs:
+  outboundUrl: http://104.198.209.68:9100
+  outboundUser: personal_sc
+  outboundPassword: personal_sc!2#
+  batch:
+      schedule:
+        praha: "* 5 * * * *"
+        prahaMemberActionCntInInfos: "* 5 * * * *"
