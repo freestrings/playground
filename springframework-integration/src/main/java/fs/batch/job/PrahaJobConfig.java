@@ -20,7 +20,9 @@ import org.springframework.context.annotation.Configuration;
 
 @Slf4j
 @Configuration
-public class PrahaJobConfig {
+public class PrahaJobConfig<D extends ResponseDTO<PrahaDTO>> {
+
+    public static final String JOB_NAME = "prahaJob";
 
     @Autowired
     private IOutboundService outboundService;
@@ -33,17 +35,17 @@ public class PrahaJobConfig {
 
     @Bean
     public Job prahaJob() {
-        return jobBuilderFactory.get("prahaJob")
+        return jobBuilderFactory.get(JOB_NAME)
                 .incrementer(new RunIdIncrementer())
                 .start(prahaStep())
                 .build();
     }
 
     @Bean
-    public Step prahaStep() {
+    protected Step prahaStep() {
         return stepBuilderFactory.get("prahaStep")
                 .allowStartIfComplete(true)
-                .<ResponseDTO<PrahaDTO>, ResponseDTO<PrahaDTO>>chunk(1)
+                .<D, D>chunk(1)
                 .reader(prahaReader())
                 .processor(prahaProcessor())
                 .writer(prahaWriter())
@@ -52,11 +54,11 @@ public class PrahaJobConfig {
 
     @Bean
     @StepScope
-    public ItemReader<ResponseDTO<PrahaDTO>> prahaReader() {
-        return new SingleItemReader<ResponseDTO<PrahaDTO>>() {
+    protected ItemReader<D> prahaReader() {
+        return new SingleItemReader<D>() {
             @Override
-            protected ResponseDTO<PrahaDTO> readMessage() {
-                ResponseDTO<PrahaDTO> response = outboundService.praha("");
+            protected D readMessage() {
+                D response = (D) outboundService.praha("");
 
                 if (log.isDebugEnabled()) {
                     log.debug("prahaReader:" + response.toString());
@@ -67,13 +69,13 @@ public class PrahaJobConfig {
     }
 
     @Bean
-    public ItemProcessor<ResponseDTO<PrahaDTO>, ResponseDTO<PrahaDTO>> prahaProcessor() {
+    protected ItemProcessor<D, D> prahaProcessor() {
         // do nothing
         return item -> item;
     }
 
     @Bean
-    public ItemWriter prahaWriter() {
+    protected ItemWriter prahaWriter() {
         return items -> {
             // 어딘가에 저장
         };

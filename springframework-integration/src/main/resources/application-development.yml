@@ -6,6 +6,10 @@ logging.level:
   fs: DEBUG
 
 fs:
-  outboundUrl: http://104.198.209.68:9100
-  outboundUser: personal_sc
-  outboundPassword: personal_sc!2#
+  outbound:
+    protocol: http
+    host: localhost
+    port: 8000
+    path: ""
+    user: ""
+    password: ""

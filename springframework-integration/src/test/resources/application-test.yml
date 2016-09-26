@@ -6,6 +6,10 @@ logging.level:
   fs: DEBUG
 
 fs:
-  outboundUrl: http://localhost:8000
-  outboundUser: ''
-  outboundPassword: ''
+  outbound:
+    protocol: http
+    host: localhost
+    port: 8080
+    path: mock
+    user: ''
+    password: ''

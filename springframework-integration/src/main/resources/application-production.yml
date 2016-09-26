@@ -3,9 +3,13 @@ spring.batch:
   job.enabled: false
 
 fs:
-  outboundUrl: http://104.198.209.68:9100
-  outboundUser: personal_sc
-  outboundPassword: personal_sc!2#
+  outbound:
+    protocol: http
+    host: 104.198.209.68
+    port: 9100
+    path: ""
+    user: "personal_sc"
+    password: "personal_sc!2#"
   batch:
       schedule:
         praha: "* 5 * * * *"

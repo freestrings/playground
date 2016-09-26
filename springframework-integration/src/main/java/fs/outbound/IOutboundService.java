@@ -14,6 +14,6 @@ public interface IOutboundService {
     ResponseDTO<PrahaDTO> praha(String request);
 
     @Gateway(headers = @GatewayHeader(name = "routePath", value = "praha/memberActionCntInfos"))
-    ResponseDTO<MemberActionCntInfosDTO> praha_memberActionCntInfos(String request);
+    ResponseDTO<MemberActionCntInfosDTO> prahaMemberActionCntInfos(String request);
 
 }

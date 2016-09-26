@@ -22,6 +22,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class PrahaMemberActionCntInInfosJobConfig<D extends ResponseDTO<MemberActionCntInfosDTO>> {
 
+    public static final String JOB_NAME = "prahaMemberActionCntInInfosJob";
+
     @Autowired
     private IOutboundService outboundService;
 
@@ -32,18 +34,18 @@ public class PrahaMemberActionCntInInfosJobConfig<D extends ResponseDTO<MemberAc
     private StepBuilderFactory stepBuilderFactory;
 
     @Bean
-    public Job prahaJob() {
-        return jobBuilderFactory.get("prahaMemberActionCntInInfosJob")
+    public Job prahaMemberActionCntInInfosJob() {
+        return jobBuilderFactory.get(JOB_NAME)
                 .incrementer(new RunIdIncrementer())
                 .start(prahaMemberActionCntInInfosStep())
                 .build();
     }
 
     @Bean
-    public Step prahaMemberActionCntInInfosStep() {
+    protected Step prahaMemberActionCntInInfosStep() {
         return stepBuilderFactory.get("prahaMemberActionCntInInfosStep")
                 .allowStartIfComplete(true)
-                .<ResponseDTO<MemberActionCntInfosDTO>, ResponseDTO<MemberActionCntInfosDTO>>chunk(1)
+                .<D, D>chunk(1)
                 .reader(prahaMemberActionCntInInfosReader())
                 .processor(prahaMemberActionCntInInfosProcessor())
                 .writer(prahaWriter())
@@ -52,11 +54,11 @@ public class PrahaMemberActionCntInInfosJobConfig<D extends ResponseDTO<MemberAc
 
     @Bean
     @StepScope
-    public ItemReader<ResponseDTO<MemberActionCntInfosDTO>> prahaMemberActionCntInInfosReader() {
-        return new SingleItemReader<ResponseDTO<MemberActionCntInfosDTO>>() {
+    protected ItemReader<D> prahaMemberActionCntInInfosReader() {
+        return new SingleItemReader<D>() {
             @Override
-            protected ResponseDTO<MemberActionCntInfosDTO> readMessage() {
-                D response = (D) outboundService.praha_memberActionCntInfos("");
+            protected D readMessage() {
+                D response = (D) outboundService.prahaMemberActionCntInfos("");
 
                 if (log.isDebugEnabled()) {
                     log.debug("prahaMemberActionCntInInfosReader:" + response.toString());
@@ -67,13 +69,13 @@ public class PrahaMemberActionCntInInfosJobConfig<D extends ResponseDTO<MemberAc
     }
 
     @Bean
-    public ItemProcessor<ResponseDTO<MemberActionCntInfosDTO>, ResponseDTO<MemberActionCntInfosDTO>> prahaMemberActionCntInInfosProcessor() {
+    protected ItemProcessor<D, D> prahaMemberActionCntInInfosProcessor() {
         // do nothing
         return item -> item;
     }
 
     @Bean
-    public ItemWriter prahaWriter() {
+    protected ItemWriter prahaWriter() {
         return items -> {
             // 어딘가에 저장
         };

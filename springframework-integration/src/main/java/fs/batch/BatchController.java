@@ -1,15 +1,12 @@
 package fs.batch;
 
-import fs.batch.JobLaunchService;
+import fs.batch.dto.JobExecutionResult;
+import fs.batch.exception.JobExecutionFail;
+import fs.batch.exception.JobNotFound;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
-import org.springframework.messaging.MessageHeaders;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * Rest로 배치를 실행
@@ -24,16 +21,19 @@ public class BatchController {
     @Autowired
     private MessageChannel inHttp;
 
-    @GetMapping("/praha")
-    public ResponseEntity<?> praha() throws Exception {
-        jobLaunchService.praha();
-        return new ResponseEntity<>(HttpStatus.OK);
+    @PostMapping("/jobs/{jobName}")
+    public JobExecutionResult jobs(@PathVariable String jobName) throws Exception {
+        return jobLaunchService.launch(jobName);
     }
 
-    @GetMapping("/praha/memberActionCntInfos")
-    public ResponseEntity<?> prahaMemberActionCntInfos() throws Exception {
-        jobLaunchService.prahaMemberActionCntInInfosJob();
-        return new ResponseEntity<>(HttpStatus.OK);
+    @ExceptionHandler(value = JobNotFound.class)
+    @ResponseStatus(value = HttpStatus.BAD_REQUEST, reason = "No such Job")
+    public void noSuchJobException() {
+    }
+
+    @ExceptionHandler(value = JobExecutionFail.class)
+    @ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR, reason = "Job Excecution Fail")
+    public void jobExcecutionFailException() {
     }
 
 }
