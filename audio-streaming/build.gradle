@@ -1,0 +1,26 @@
+group 'fs.playground'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'http://mvn.collide.info/content/repositories/releases/'
+    }
+}
+
+dependencies {
+    compile group: 'javax.media', name: 'jmf', version: 'fs-3.0'
+    // http://www.javazoom.net/mp3spi/sources.html
+    compile fileTree(dir: './src/main/libs', include: '*.jar')
+
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+}
+
+// gradle -q listJars
+task listJars << {
+    configurations.compile.each { File file -> println file.name }
+}
