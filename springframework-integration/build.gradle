@@ -1,5 +1,20 @@
+apply plugin: 'java'
+apply plugin: 'spring-boot'
+apply plugin: 'application'
+
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+
+apply plugin: 'propdeps'
+apply plugin: 'propdeps-idea'
+apply plugin: 'propdeps-eclipse'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
 group 'fs.playground'
 version '1.0-SNAPSHOT'
+mainClassName = 'fs.IntegrationApp'
 
 buildscript {
     repositories {
@@ -7,21 +22,26 @@ buildscript {
         maven { url 'http://repo.spring.io/plugins-release' }
     }
     dependencies {
-        classpath('org.springframework.boot:spring-boot-gradle-plugin:1.4.0.RELEASE')
+        classpath('org.springframework.boot:spring-boot-gradle-plugin:1.4.1.RELEASE')
         classpath('org.springframework.build.gradle:propdeps-plugin:0.0.7')
     }
 }
 
-apply plugin: 'java'
-apply plugin: 'spring-boot'
-apply plugin: 'eclipse'
-apply plugin: 'idea'
-apply plugin: 'propdeps'
-apply plugin: 'propdeps-idea'
-apply plugin: 'propdeps-eclipse'
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+jar {
+    manifest {
+        attributes(
+                'Title': 'Fs Integration App',
+                'Implementation-Version': version,
+                'Version': version,
+                'Main-Class': mainClassName
+        )
+    }
+    archiveName "fs-integration-${version}.jar"
+    dependsOn configurations.runtime
+    from {
+        configurations.compile.collect {it.isDirectory()? it: zipTree(it)}
+    }
+}
 
 repositories {
     mavenCentral()
@@ -31,16 +51,13 @@ dependencies {
     compile('org.springframework.boot:spring-boot-starter-web')
     compile('org.springframework.boot:spring-boot-starter-integration')
     compile("org.springframework.boot:spring-boot-starter-batch")
-
     compile('org.springframework.integration:spring-integration-http')
     compile('org.springframework.integration:spring-integration-stream')
 
+    compile('com.h2database:h2')
     compile('com.fasterxml.jackson.core:jackson-databind:2.8.3')
 
-    compile('org.hsqldb:hsqldb:2.3.2')
-
     compileOnly('org.projectlombok:lombok:1.16.10')
-
     optional('org.springframework.boot:spring-boot-configuration-processor')
 
     testCompile('org.springframework.boot:spring-boot-starter-test')

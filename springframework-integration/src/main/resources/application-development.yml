@@ -1,6 +1,9 @@
-spring.batch:
-  # 어플리케이션이 뜨면서 바로 배치가 실행되는 것을 방지
-  job.enabled: false
+spring:
+  main:
+    banner-mode: "off"
+  batch:
+    # 어플리케이션이 뜨면서 바로 배치가 실행되는 것을 방지
+    job.enabled: false
 
 logging.level:
   fs: DEBUG
