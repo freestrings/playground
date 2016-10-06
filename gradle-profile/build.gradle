@@ -1,0 +1,27 @@
+group 'fs.playground'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+loadConfiguration()
+
+task printProps << {
+    println config
+}
+
+def loadConfiguration() {
+    def configFile = file("config/$activeProfile-config.groovy")
+    def config = new ConfigSlurper().parse(configFile.toURL())
+    ext.setProperty('config', config)
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.0'
+}
