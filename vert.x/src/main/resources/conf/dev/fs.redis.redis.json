@@ -1,0 +1,13 @@
+{
+  "main": "fs.redis.Redis",
+  "description": "개발 설정",
+  "options": {
+    "instances": 1,
+    "config": {
+      "redis": {
+        "host": "localhost",
+        "port": 6379
+      }
+    }
+  }
+}

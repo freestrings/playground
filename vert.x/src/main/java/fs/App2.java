@@ -1,26 +1,24 @@
 package fs;
 
-import fs.redis.Redis;
-import fs.web.Http;
-import io.vertx.core.*;
+import fs.web.HttpWithRedis;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Handler;
 import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.service.ServiceVerticleFactory;
 
-public class App extends AbstractVerticle {
+public class App2 extends AbstractVerticle {
 
-    private Logger logger = LoggerFactory.getLogger(App.class);
+    private Logger logger = LoggerFactory.getLogger(App2.class);
 
     @Override
     public void start() throws Exception {
-        logger.info("!!!Start App!!!");
-        VertxOptions vertxOptions = new VertxOptions();
-//        vertxOptions.setEventLoopPoolSize(1);
-//        this.vertx = Vertx.vertx(vertxOptions);
-        this.vertx.registerVerticleFactory(new ServiceVerticleFactory());
-        deployVerticle(Redis.class);
-        deployVerticle(Http.class);
+        logger.info("!!!Start App2!!!");
+        vertx.registerVerticleFactory(new ServiceVerticleFactory());
+        deployVerticle(HttpWithRedis.class);
     }
 
     private void deployVerticle(Class<?> servicClass) {

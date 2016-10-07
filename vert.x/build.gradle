@@ -18,8 +18,8 @@ repositories {
 dependencies {
     compile "io.vertx:vertx-core:$vertxVersion"
     compile "io.vertx:vertx-web:$vertxVersion"
+    compile "io.vertx:vertx-service-factory:$vertxVersion"
     compile "io.vertx:vertx-redis-client:$vertxVersion"
-    compile "io.vertx:vertx-hazelcast:$vertxVersion"
     compile "org.slf4j:jcl-over-slf4j:$jclSlf4jVersion"
     compile "ch.qos.logback:logback-classic:$logbackVersion"
 
@@ -40,7 +40,13 @@ shadowJar {
 run {
     systemProperties System.properties
     systemProperty "vertx.logger-delegate-factory-class-name", "io.vertx.core.logging.SLF4JLogDelegateFactory"
-    args = ["run", project.hasProperty("mainVerticle") ? mainVerticle : "fs.App"]
+    args = [
+            "run",
+            project.hasProperty("mainVerticle") ? mainVerticle : "fs.App",
+            "-DactiveProfile=$activeProfile"
+//            ,
+//            "-conf", "$project.projectDir/src/test/resources/fs.ext-conf.json"
+    ]
 }
 
 task wrapper(type: Wrapper) {

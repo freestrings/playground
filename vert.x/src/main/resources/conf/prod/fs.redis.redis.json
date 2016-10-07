@@ -1,0 +1,4 @@
+{
+  "main": "fs.redis.Redis",
+  "description": "리얼 설정"
+}

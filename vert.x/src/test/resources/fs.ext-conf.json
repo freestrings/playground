@@ -1,0 +1,5 @@
+{
+  "options": {
+    "instances": 4 // 외부 설정은 "config" 만 override 가능하다.
+  }
+}

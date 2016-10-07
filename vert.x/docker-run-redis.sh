@@ -1,0 +1,1 @@
+docker run --name redis --cpuset-cpus=0 -d -p 6379:6379 redis
