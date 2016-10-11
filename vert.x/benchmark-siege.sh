@@ -1,3 +1,5 @@
+#!/bin/bash
+
 param="-b -c200 -t 10s"
 
 if [ "$1" = "nginx" ]

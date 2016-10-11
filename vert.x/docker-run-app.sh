@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ "$#" -ne 2 ];
 then
     echo "first arg: vertx id"
