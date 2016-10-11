@@ -9,10 +9,12 @@ fi
 echo "config=> `pwd`/src/test/resources/nginx$1.conf:/etc/nginx/nginx.conf";
 
 link=""
-for (( i=1; i<=$i; i++ ))
+for (( i=1; i<=$1; i++ ))
 do
     link+="--link fs-vertx$i "
 done
+
+echo "link: $link"
 
 docker run --rm --name nginx \
             $link \
