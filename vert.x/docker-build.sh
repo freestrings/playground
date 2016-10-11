@@ -1,1 +1,2 @@
-docker build --tag freestrings/vert-x .
+./gradlew clean shadowJar \
+    && docker build --tag freestrings/vert-x .

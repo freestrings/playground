@@ -1,1 +1,0 @@
-siege -b -c100 -t 10S http://127.0.0.1:8080/vertx

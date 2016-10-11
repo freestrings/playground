@@ -16,8 +16,8 @@ public class App extends AbstractVerticle {
     public void start() throws Exception {
         logger.info("!!!Start App!!!");
         VertxOptions vertxOptions = new VertxOptions();
-//        vertxOptions.setEventLoopPoolSize(1);
-//        this.vertx = Vertx.vertx(vertxOptions);
+        vertxOptions.setEventLoopPoolSize(2);
+        this.vertx = Vertx.vertx(vertxOptions);
         this.vertx.registerVerticleFactory(new ServiceVerticleFactory());
         deployVerticle(Redis.class);
         deployVerticle(Http.class);

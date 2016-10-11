@@ -26,6 +26,7 @@ public class Http extends AbstractVerticle implements Events {
                     String sendMsg = MD5Utils.md5(String.valueOf(System.nanoTime()));
                     logger.info("Send: {}", sendMsg);
                     eventBus.send(REDIS_GET, sendMsg, getHandler(request, sendMsg));
+                    // switch
                 })
                 .listen(getPort(), getHost());
     }
