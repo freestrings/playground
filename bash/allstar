@@ -1,0 +1,8 @@
+echo '$*'
+bash secondsh $*
+echo 
+echo '"$*"'
+bash secondsh "$*"
+echo 
+echo '"$@"'
+bash secondsh "$@"

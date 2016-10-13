@@ -1,0 +1,323 @@
+표준/에러 출력
+
+1, 2, &
+
+표준출력
+ls . 1>out
+cat out
+
+표준에러
+ls /temp 2>out
+cat out
+
+모두출력
+ls /temp &>out
+cat out
+
+
+
+
+
+됨
+
+
+--------------------------------
+'&' 는 파일 디스크립터
+'&'뒤는 파일 이름이 아니라 파일 디스크립터 임을 나타냄
+(파일 디스크립터 = 파일 핸들)
+
+ls -l not.here 2>&1 > out
+ls out # out 파일 있음
+cat out # 내용 없음 
+
+
+
+
+
+
+
+
+
+--------------------------------
+Redirect/Piping, Input/Output
+
+ls > /tmp/out
+wc < /tmp/out
+=>
+ls | wc
+ls notafile | wc
+ls notafile 2>&1 | wc
+
+
+
+
+
+
+
+
+
+--------------------------------
+'>>', '<<'
+echo "A" > a
+echo "A" >> a
+
+wc << EOF
+a
+b
+EOF
+
+[pipe_grep]
+
+
+
+
+
+
+
+
+
+
+--------------------------------
+배쉬 실행 옵션
+
+bash -n myscript
+실행하지 않음 문법체크만.
+
+bash -v myscript
+vervose 라인별 스크립트를 출력해줌
+
+bash -x myscript
+스크립트 실행 결과와 함께 보여줌
+
+[myscript]
+
+
+
+
+
+
+
+
+
+--------------------------------
+'&&', '||'
+
+[WTF]
+
+=> 이렇게 하면 됨
+cd /temp && rm *
+
+=> 실패 메시지 같은걸 찍고 싶다.
+[no-WTF1]
+
+=> 실패 메시지 찍고 종료
+[no-WTF2]
+
+=> 에러메시지 제거
+[no-WTF3]
+
+=> '&&' 이용
+[no-WTF4]
+
+=> 최초 WTF을 이용
+[no-WTF5]
+
+=> '{}'
+[no-WTF6]
+
+subshell
+[no-WTF7]
+
+
+
+
+
+
+
+
+
+
+--------------------------------
+
+조건문으로..
+
+[if-WTF]
+
+조건문을 '{}' 으로 
+[if-WTF1]
+
+
+
+
+
+
+
+
+
+--------------------------------
+변수
+var1="this is a string"
+
+echo $var1
+echo "$var ilam"
+echo ${var1}
+echo ${var1}ida
+echo "${var1} ida"
+
+
+
+
+
+
+
+
+
+--------------------------------
+변수값 실행
+var1=../
+ls $var1
+
+q1. ls $empty
+q2. CMD=ls; $CMD
+
+
+
+
+
+
+
+
+
+--------------------------------
+변수값 전달
+
+[show]
+var=value
+bash show
+
+export var=value
+bash show
+
+export var1=value
+var1=other
+bash
+echo $var1
+
+var=1
+./show
+
+var=1 ./show
+var=1 bash show
+
+
+
+
+
+
+
+
+
+--------------------------------
+'$?' 이전 실행 결과
+
+
+cd /temp
+echo $?
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------
+echo 와 쌍따옴표
+
+var=abcde
+echo 1 $var 2
+
+
+
+
+
+
+
+
+
+--------------------------------
+printf
+
+var=1
+printf "value: %d " $var
+printf "value: %f " $var
+printf "value: %#x " $var
+
+
+
+
+
+
+
+
+
+--------------------------------
+arguments
+
+[mycopy]
+
+src=/dev/null
+dest=/tmp/mycopy
+bash mycopy
+
+bash mycopy /dev/null /tmp/mycopy2
+
+[allargs]
+[atstar]
+
+
+
+
+
+
+
+
+
+--------------------------------
+패턴매칭
+bash allstar f*
+
+
+
+------------------------
+PIC=aabb
+echo $PIC
+echo ${PIC}
+echo ${PIC%a}
+echo ${PIC%?}
+
+=> 정규식 아님
+'?'는 문자 1개. '*'는 0개이상
+
+echo $PIC
+echo ${PIC}
+echo ${PIC#?}
+
+v="host:path"
+echo ${v#*:}
+echo ${v%:*}
+
+------------------------
+
+v=abba
+echo ${v/bb/}
+echo ${v/bb/~~}
+
+v=abba
+echo ${v/bb}
+echo ${v/bb~~}

@@ -1,0 +1,355 @@
+표준/에러 출력
+
+# 1, 2, &
+
+## standard out
+ls not.hear 1> out
+cat out
+
+## standard err
+ls not.hear 2> out
+cat out
+
+## 모두
+ls not.hear &> out
+cat out
+
+
+## &
+파일 디스크립터(=파일핸들). 즉, '&'뒤는 파일 이름이 아니라 파일 파일 디스크립터 임을 나타냄.
+ll -l /proc/1/fd
+
+ls -l not.here 2>&1 > out
+ls out # out 파일 있음
+cat out # 내용 없음
+
+ls -l not.here > out 2>&1
+cat out
+
+
+-----------------
+Redirect/piping, input/output
+ls > /tmp/out
+wc < /tmp/out
+=>
+ls | wc
+
+ls not.here | wc
+
+ls not.here 2>&1 | wc
+
+
+-----------------
+
+wc << --
+a
+b
+--
+
+---------------------
+vi ph
+grep -i $* <<< EOF
+han 010-111-2222
+ha 010-222-1111
+EOF
+
+
+bash ph han
+
+
+-------------------------
+mysript 
+pwd
+ls
+
+bash -n myscript
+실행하지 않음 문법체크만.
+
+bash -v myscript
+vervose 라인별 스크립트를 출력해줌
+
+bash -x myscript
+스크립트 실행 결과와 함께 보여줌
+
+myscript
+# run pwd
+pwd
+
+# run ls
+ls
+
+bash -x myscript
+bash -v myscript
+
+
+-------------------------
+
+vi oh.no
+cd /temp
+rm *
+
+/temp로 못갔는데(에러가 났는데) 삭제함
+
+--------------------------
+&& ||
+
+cd /temp && rm *
+
+
+cd /temp || echo fail!!
+echo continuing on
+
+=> 
+
+cd /temp || exit 1
+echo continuing on
+
+=> 에러 메세지 나옴
+
+cd /temp 2>/dev/null || exit 1
+echo continuing on
+
+=> 그래도 안내는 해 줘야
+
+cd /temp 2>/dev/null || echo cd failed && exit 1
+
+=> oh.no를 생각하면..
+
+cd /temp 2>/dev/null || echo cd failed ; exit 1
+
+=> 그런데
+
+cd /tmp 2>/dev/null || echo cd failed ; exit 1
+echo continuing on
+
+=> 
+
+cd /temp 2>/dev/null || { echo cd failed ; exit 1 ; }
+echo continuing on
+
+cd /tmp 2>/dev/null || { echo cd failed ; exit 1 ; }
+echo continuing on
+
+=> 그리고
+
+cd /temp 2>/dev/null || ( echo cd failed ; exit 1 ; )
+echo continuing on
+
+=> 이거슨 subshell 실행
+
+
+----------------------------------------
+
+if cd /tmp 2>/dev/null
+then
+	echo cd worked
+else
+	echo cd failed
+	exit 1
+fi
+
+echo continuing on
+
+
+=> 
+
+if cd /tmp 2>/dev/null
+then echo cd worked
+else echo cd failed
+	exit 1
+fi
+
+
+if cd /tmp 2>/dev/null; then echo cd worked; else echo cd failed; exit 1; fi
+
+
+=> 
+
+if { pwd ; cd /tmp ; false ; }
+then
+	echo cd worked
+else
+	echo cd failed
+	exit 1
+fi
+
+echo continuing on
+
+=> 마지막 결과에 따라 조건여부가 결정됨
+
+if ls not.here 2>/dev/null
+then 
+	echo succeed
+else
+	echo fail
+fi
+
+
+
+-------------------------
+if cd /tmp 2>/dev/null
+then
+	echo worked
+else
+	exit 1
+fi
+exit 0
+
+
+-------------------------
+var1="this is a string"
+var2=this_is_a_string
+
+echo var1
+echo $var2
+
+echo ${var}ida
+echo "${var} ida"
+
+
+----------------------
+
+var2=../
+ls $var2
+
+=> 
+
+ls $empty
+
+CMD=ls
+$CMD
+
+------------------------
+
+bash
+$CMD
+
+export CMD
+
+$CMD
+
+export var1=value
+var1=other
+bash
+echo $var1
+
+vi show
+echo $var
+
+chmod +x show
+./show
+
+var=1
+./show
+
+=>
+
+var=1 ./show
+
+
+-------------------------
+
+'$?'는 이전 실행 결과
+
+cd /nowhere
+echo $?
+
+------------------------
+"" 으로 감쌀 필요없음
+
+var=abcde
+echo 1 $var 2
+
+var=1 $var 2 
+요건 안됨
+
+var="1 $var 2"
+
+------------------------
+printf
+
+var=1
+printf "value: %d " $var
+printf "value: %f " $var
+printf "value: %#x " $var
+
+
+------------------------
+$0 $1 $2 ....
+
+vi mycopy
+cp $src $dest
+
+
+src=/dev/null dest=/tmp/x.y bash mycopy
+
+
+vi mycopy
+echo $0 # 파일이름
+echo $1 # 첫번째 인자
+echo $2
+
+cp $1 $2
+
+=>
+
+bash -x mycopy /dev/null /tmp
+
+
+
+------------------------
+vi allarsgs
+echo $* # all
+echo $@ # all
+echo $# # args count
+
+------------------------
+vi atstar
+./secondsh $*
+./secondsh "$*"
+./secondsh "$@"
+
+vi secondsh
+echo '1st arg ($1) is "'$1'"'
+echo '2nd arg ($2) is "'$2'"'
+
+------------------------
+패턴매칭 
+bash allstar f*
+
+
+------------------------
+PIC=aabb
+echo $PIC
+echo ${PIC}
+echo ${PIC%a}
+echo ${PIC%?}
+
+=> 정규식 아님
+'?'는 문자 1개. '*'는 0개이상
+
+echo $PIC
+echo ${PIC}
+echo ${PIC#?}
+
+v="host:path"
+echo ${v#*:}
+echo ${v%:*}
+
+------------------------
+
+v=abba
+echo ${v/bb/}
+echo ${v/bb/~~}
+
+v=abba
+echo ${v/bb}
+echo ${v/bb~~}
+
+
+
+
+
+
+
+

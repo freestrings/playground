@@ -1,0 +1,5 @@
+echo $* # all
+echo 
+echo $@ # all
+echo 
+echo $# # args count

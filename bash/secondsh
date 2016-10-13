@@ -1,0 +1,4 @@
+# "1st is '$1'"
+echo '1st arg ($1) is "'$1'"'
+# "2nd is '$2'"
+echo '2nd arg ($2) is "'$2'"'

@@ -1,0 +1,11 @@
+if cd /tmp 2>/dev/null
+then
+	echo cd worked
+else
+	echo cd failed
+	exit 1
+fi
+
+echo continuing on
+
+# 한줄에 써도 됨

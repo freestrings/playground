@@ -1,0 +1,6 @@
+# "pwd" 실행
+pwd
+# "ls" 실행
+ls
+# args1 $1
+echo "arg1 $1"
