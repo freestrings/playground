@@ -1,6 +1,7 @@
 package fs.redis;
 
 import fs.Events;
+import fs.redis.handler.RedisMessageHandlerFactory;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
 import io.vertx.core.eventbus.Message;
@@ -20,16 +21,21 @@ public class Redis extends AbstractVerticle implements Events {
 
         RedisClient redis = RedisClient.create(vertx, createRedisOptions());
 
-        vertx.eventBus().consumer(REDIS_GET, (Handler<Message<String>>) message -> {
-            String body = message.body();
-            logger.info("Receive: {}", body);
-            redis.get("test", result -> {
-                if (result.failed()) {
-                    message.fail(-1, result.cause().toString());
-                } else {
-                    message.reply(body);
-                }
-            });
+        vertx.eventBus().consumer(REDIS_GET, (Handler<Message<JsonObject>>) message -> {
+            JsonObject body = message.body();
+
+            if (logger.isTraceEnabled()) {
+                logger.trace("Receive: {}", body.toString());
+            }
+
+            IRedisMessageHandler handler = RedisMessageHandlerFactory.create(body.getString("path"), redis);
+            if (handler == null) {
+                logger.error("No Handler for '{}'", body);
+                message.fail(-1, String.format("No Handler for '%s'", body));
+            } else {
+                handler.doHandle(message);
+            }
+
         });
     }
 
