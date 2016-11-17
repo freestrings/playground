@@ -1,0 +1,2 @@
+#!/bin/bash
+gcc -o pthread1 pthread1.c -lpthread
