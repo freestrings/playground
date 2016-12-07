@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 fn is_prime1(n: i32) -> bool {
     for i in 2..n {
         if n % i == 0 {
@@ -7,6 +8,7 @@ fn is_prime1(n: i32) -> bool {
     true
 }
 
+#[allow(dead_code)]
 fn is_prime2(n: i32) -> bool {
     let s = (n as f64).sqrt() as i32;
     for i in 2..s + 1 {
@@ -17,6 +19,7 @@ fn is_prime2(n: i32) -> bool {
     true
 }
 
+#[allow(dead_code)]
 fn find_all_prime_numbers(n: usize) -> Vec<usize> {
 
     fn initialize(n: usize) -> Vec<usize> {
