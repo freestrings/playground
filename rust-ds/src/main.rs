@@ -1,6 +1,6 @@
 mod gcd;
 mod prime;
-mod linked_list1;
+mod linked_list;
 
 fn main() {
 }

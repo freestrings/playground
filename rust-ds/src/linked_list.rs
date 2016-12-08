@@ -1,9 +1,6 @@
 use std::mem;
 
-enum Link {
-    Empty,
-    Normal(Box<Node>),
-}
+type Link = Option<Box<Node>>;
 
 struct Node {
     data: i32,
@@ -17,7 +14,7 @@ struct List {
 impl List {
     fn new() -> Self {
         List {
-            head: Link::Empty
+            head: None
         }
     }
 
@@ -29,10 +26,9 @@ impl List {
     /// - Option::take 구현은 내부적으로 mem::replace 이다.
     ///
     fn push(&mut self, v: i32) {
-        let link = mem::replace(&mut self.head, Link::Empty);
-        self.head = Link::Normal(Box::new(Node {
+        self.head = Some(Box::new(Node {
             data: v,
-            next: link
+            next: self.head.take()
         }));
     }
 
@@ -42,15 +38,11 @@ impl List {
     /// Box안의 값을 명시적으로 옮길 때는 `*`(dereferencing)을 한다.
     ///
     fn pop(&mut self) -> Option<i32> {
-        let link = mem::replace(&mut self.head, Link::Empty);
-        match link {
-            Link::Empty => None,
-            Link::Normal(_node/*Box*/) => {
-                let node = *_node;
-                self.head = node.next;
-                Some(node.data)
-            }
-        }
+        self.head.take().map(|_node/*Box*/| {
+            let node = *_node;
+            self.head = node.next;
+            node.data
+        })
     }
 }
 
