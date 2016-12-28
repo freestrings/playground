@@ -75,11 +75,11 @@ impl<T: Ord> BinaryTree<T> {
                 &mut Some(ref mut node) if node.data < *data => {
                     temp_node = &mut node.left;
                 },
-                &mut Some(ref mut l) if node.data > *data => {
+                &mut Some(ref mut node) if node.data > *data => {
                     temp_node = &mut node.right;
                 },
-                &mut Some(ref mut l) if node.data == *data => {
-
+                &mut Some(ref mut node) if node.data == *data => {
+                    
                 },
                 other @ &mut Some(_) |
                 other @ &mut None => return other
