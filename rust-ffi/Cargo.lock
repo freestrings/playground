@@ -1,5 +1,5 @@
 [root]
-name = "rtag"
+name = "rust-ffi"
 version = "0.1.0"
 dependencies = [
  "git2 0.6.3 (git+https://github.com/alexcrichton/git2-rs.git)",

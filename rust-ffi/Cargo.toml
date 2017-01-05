@@ -1,5 +1,5 @@
 [package]
-name = "rtag"
+name = "rust-ffi"
 version = "0.1.0"
 authors = ["freestrings@wemakeprice.com"]
 links = "id3v2"
