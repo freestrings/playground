@@ -1,0 +1,30 @@
+---
+# 개발
+logging:
+  level:
+    org.springframework.security: DEBUG
+spring:
+  profiles: default
+zuul:
+  routes:
+    tnc:
+      path: /api/**
+      url: http://localhost:8000/
+---
+# 프로덕션
+# 80이라서 sudo로 실행.
+# -Dspring.profiles.active=prod 실행 옵션
+# TODO
+# - wro 적용
+logging:
+  level:
+    org.springframework.security: ERROR
+server:
+  port: 80
+spring:
+  profiles: prod
+zuul:
+  routes:
+    tnc:
+      path: /api/**
+      url: http://.../

@@ -1,0 +1,51 @@
+buildscript {
+    ext {
+        springBootVersion = '1.4.4.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+group 'fs-playground'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+jar {
+    baseName = 'tnc-front'
+    version =  '0.1.0'
+}
+
+//http://docs.spring.io/spring-boot/docs/current/reference/html/build-tool-plugins-gradle-plugin.html#build-tool-plugins-gradle-running-applications
+bootRun {
+    addResources = true
+}
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile('org.springframework.cloud:spring-cloud-starter-zuul') {
+        // 헬스체크가 필요한감?
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-actuator'
+    }
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+
+// 안정된 버전은 아니지만 zuul 라우터 쓰는 정도엔 무리 없음.
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:Brixton.SR7"
+    }
+}
