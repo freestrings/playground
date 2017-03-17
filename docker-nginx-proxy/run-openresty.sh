@@ -1,0 +1,1 @@
+docker run --name nginx -d -v "$PWD"/openresty.conf:/usr/local/openresty/nginx/conf/nginx.conf -p 8081:80 --link nginx_api openresty/openresty
