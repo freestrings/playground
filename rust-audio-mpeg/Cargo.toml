@@ -1,0 +1,7 @@
+[package]
+name = "rust-audio-mpeg"
+version = "0.1.0"
+authors = ["freestrings <freestrings@gmail.com>"]
+
+[dependencies]
+simplemad = "0.8.1"
