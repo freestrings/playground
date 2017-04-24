@@ -21,3 +21,6 @@ target/
 build/
 bin/
 out/
+
+#Rust
+**/*.lock
