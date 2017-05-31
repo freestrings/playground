@@ -1,0 +1,1 @@
+emcc "-s" "USE_SDL=2" "-o" "sdl_test.html" "--embed-file" "./src/animate.bmp@animate.bmp" "-02" "-s" "NO_EXIT_RUNTIME=1" $@
