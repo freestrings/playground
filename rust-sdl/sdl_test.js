@@ -2061,7 +2061,7 @@ function _emscripten_asm_const_iii(code, a0, a1) {
 
 STATIC_BASE = 1024;
 
-STATICTOP = STATIC_BASE + 65632;
+STATICTOP = STATIC_BASE + 66880;
   /* global initializers */  __ATINIT__.push();
   
 
@@ -2070,7 +2070,7 @@ memoryInitializer = Module["wasmJSMethod"].indexOf("asmjs") >= 0 || Module["wasm
 
 
 
-var STATIC_BUMP = 65632;
+var STATIC_BUMP = 66880;
 Module["STATIC_BASE"] = STATIC_BASE;
 Module["STATIC_BUMP"] = STATIC_BUMP;
 
@@ -10333,9 +10333,9 @@ function nullFunc_viif(x) { Module["printErr"]("Invalid function pointer called 
 
 function nullFunc_viiii(x) { Module["printErr"]("Invalid function pointer called with signature 'viiii'. Perhaps this is an invalid value (e.g. caused by calling a virtual method on a NULL pointer)? Or calling a function with an incorrect type, which will fail? (it is worth building your source files with -Werror (warnings are errors), as warnings can indicate undefined behavior which can cause this)");  Module["printErr"]("Build with ASSERTIONS=2 for more info.");abort(x) }
 
-Module['wasmTableSize'] = 35840;
+Module['wasmTableSize'] = 36352;
 
-Module['wasmMaxTableSize'] = 35840;
+Module['wasmMaxTableSize'] = 36352;
 
 function invoke_iiiiiiii(index,a1,a2,a3,a4,a5,a6,a7) {
   try {

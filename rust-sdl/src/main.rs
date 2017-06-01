@@ -59,6 +59,7 @@ fn main() {
 
     set_main_loop_callback(|| {
         let ticks = timer.ticks();
+        println!("ticks: {}", ticks);
 
         source_rect.set_x((128 * ((ticks / 100) % 6) ) as i32);
         canvas.clear();
