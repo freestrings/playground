@@ -1,43 +1,48 @@
 extern crate emscripten_sys as asm;
-
+extern crate sdl2;
 extern crate rand;
 
-extern crate graphics;
-extern crate opengl_graphics;
-extern crate piston;
-extern crate sdl2_window;
-
-use opengl_graphics::*;
-use piston::window::*;
-use sdl2_window::Sdl2Window;
+use sdl2::rect::{Point, Rect};
+use sdl2::video::{Window, WindowContext};
+use sdl2::render::{Canvas, Texture, TextureCreator, WindowCanvas};
+use sdl2::pixels::Color;
 
 use std::mem;
 use std::os::raw::c_void;
 
-use rand::Rng;
-
 fn main() {
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
 
-    let opengl = OpenGL::V2_1;
-
-    let mut window: Sdl2Window = WindowSettings::new("Hello!", (640 as u32, 480 as u32))
-        .opengl(opengl)
-        .srgb(false) // important!
-        .exit_on_esc(true)
+    let window = video_subsystem.window("Test", 640, 480)
         .build()
-        .expect("fail to build window");
+        .unwrap();
 
-    let gl_graphics = GlGraphics::new(opengl);
+    let canvas: WindowCanvas =
+        window.into_canvas().accelerated().target_texture().build().unwrap();
 
-    run(window, gl_graphics);
+    init(canvas);
+
 }
 
-struct Args {
-    gl_graphics: GlGraphics,
+struct Args<'a> {
+    canvas: Canvas<Window>,
+    texture: Texture<'a>,
+    angle: f64,
 }
 
-fn run(window: Sdl2Window, gl_graphics: GlGraphics) {
-    let mut args = Box::new(Args { gl_graphics: gl_graphics });
+fn init(canvas: Canvas<Window>) {
+    let texture_creator: TextureCreator<WindowContext> = canvas.texture_creator();
+    let texture: Texture =
+        texture_creator.create_texture_target(texture_creator.default_pixel_format(), 160, 160)
+            .unwrap();
+
+    let mut args = Box::new(Args {
+        canvas: canvas,
+        texture: texture,
+        angle: 0.0,
+    });
+
     let args_ptr = &mut *args as *mut Args as *mut c_void;
 
     unsafe {
@@ -50,8 +55,32 @@ fn run(window: Sdl2Window, gl_graphics: GlGraphics) {
 extern "C" fn main_loop_callback(arg: *mut c_void) {
     unsafe {
         let mut args: &mut Args = mem::transmute(arg);
-        let gl_graphics = &mut args.gl_graphics;
-        let mut rng = rand::thread_rng();
-        println!("loop :{}!", rng.gen::<u32>());
+        let canvas = &mut args.canvas;
+        let texture = &mut args.texture;
+
+        args.angle = (args.angle + 10.5) % 360.;
+
+        canvas.with_texture_canvas(texture, |texture_canvas| {
+                texture_canvas.clear();
+                texture_canvas.set_draw_color(Color::RGBA(255, 0, 0, 100));
+                texture_canvas.fill_rect(Rect::new(0, 0, 160, 160)).unwrap();
+            })
+            .unwrap();
+
+        canvas.set_draw_color(Color::RGBA(0, 0, 0, 255));
+
+        let dst = Some(Rect::new(240, 160, 160, 160));
+
+        canvas.clear();
+        canvas.copy_ex(&texture,
+                     None,
+                     dst,
+                     args.angle,
+                     Some(Point::new(80, 80)),
+                     false,
+                     false)
+            .unwrap();
+        canvas.present();
+
     }
 }
