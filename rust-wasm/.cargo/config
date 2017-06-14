@@ -1,2 +1,2 @@
 [target.wasm32-unknown-emscripten]
-linker = "/home/han/Documents/works/git/playground/rust-wasm/emcc_linker"
+linker = "./emcc_linker"

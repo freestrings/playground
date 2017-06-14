@@ -1,1 +1,1 @@
-emcc "-s" "USE_SDL=2" "-o" "tetris.html" "-02" $@
+mkdir -p target/www && emcc "-s" "USE_SDL=2" "-o" "target/www/rust_wasm.html" "-02" $@
