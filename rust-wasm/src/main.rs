@@ -2,10 +2,11 @@ extern crate emscripten_sys as asm;
 extern crate rand;
 extern crate sdl2;
 
-use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::mem;
 use std::os::raw::c_void;
+
+use rand::distributions::{IndependentSample, Range};
 
 use sdl2::EventPump;
 use sdl2::event::Event;
@@ -17,9 +18,7 @@ use sdl2::video::{Window, WindowContext};
 
 const COLUMNS: u32 = 10;
 const ROWS: u32 = 20;
-
 const SCALE: u32 = 20;
-
 const DEFAULT_GRAVITY: u8 = 20;
 
 //
@@ -48,6 +47,29 @@ const BLOCK_Z: &[(u8, u8)] = &[(0, 0), (1, 0), (1, 1), (2, 1)];
 // #, #
 // #, #
 const BLOCK_O: &[(u8, u8)] = &[(0, 0), (1, 0), (0, 1), (1, 1)];
+//
+// #, #, #, #
+const BLOCK_I: &[(u8, u8)] = &[(0, 0), (1, 0), (2, 0), (3, 0)];
+
+const BLOCKS: [&[(u8, u8)]; 7] = [
+    BLOCK_T,
+    BLOCK_J,
+    BLOCK_L,
+    BLOCK_S,
+    BLOCK_Z,
+    BLOCK_O,
+    BLOCK_I,
+];
+
+const COLORS: [(u8, u8, u8); 7] = [
+    (128, 0, 128),
+    (0, 0, 255),
+    (255, 165, 0),
+    (128, 255, 0),
+    (255, 0, 0),
+    (255, 255, 0),
+    (0, 255, 255),
+];
 
 fn main() {
     let sdl_context = sdl2::init().unwrap();
@@ -82,71 +104,6 @@ extern "C" fn main_loop_callback(arg: *mut c_void) {
     }
 }
 
-struct KeyHandler {
-    //
-    // KeyPress를 이벤트 루프에서 읽다보니 짧은 타이핑에 너무 많은 키 이벤트가 발생된다.
-    // KeyUp에서 토글해 주자.
-    //
-    up_pressed: HashMap<Keycode, bool>,
-}
-
-impl KeyHandler {
-    fn new() -> KeyHandler {
-        KeyHandler { up_pressed: HashMap::new() }
-    }
-
-    fn can_press(&mut self, key: &Keycode) -> bool {
-        match self.up_pressed.get(key) {
-            Some(&false) | None => true,
-            _ => false,
-        }
-    }
-
-    fn get_keycodes(&mut self, events: &mut EventPump) -> Vec<Keycode> {
-        let mut key_events = vec![];
-
-        for event in events.poll_iter() {
-            match event {
-                Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                    if self.can_press(&Keycode::Up) {
-                        key_events.push(Keycode::Up);
-                    }
-
-                    self.up_pressed.insert(Keycode::Up, true);
-                }
-                Event::KeyUp { keycode: Some(Keycode::Up), .. } => {
-                    self.up_pressed.insert(Keycode::Up, false);
-                }
-
-                Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                    key_events.push(Keycode::Left);
-                }
-                Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                    key_events.push(Keycode::Right);
-                }
-                Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                    key_events.push(Keycode::Down);
-                }
-
-                Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
-                    if self.can_press(&Keycode::Space) {
-                        key_events.push(Keycode::Space);
-                    }
-
-                    self.up_pressed.insert(Keycode::Space, true);
-                }
-                Event::KeyUp { keycode: Some(Keycode::Space), .. } => {
-                    self.up_pressed.insert(Keycode::Space, false);
-                }
-
-                _ => (),
-            }
-        }
-
-        key_events
-    }
-}
-
 struct Gravity {
     counter: i32,
     amount: u8,
@@ -160,8 +117,12 @@ impl Gravity {
         }
     }
 
-    fn applied(&mut self, points: &Vec<Point>) -> Option<Vec<Point>> {
+    fn compute(&mut self, points: &Vec<Point>, range: Rect) -> Option<Vec<Point>> {
         self.counter += 1;
+
+        if range.y() + range.height() as i32 >= ROWS as i32 {
+            return None;
+        }
 
         if self.counter > self.amount as i32 {
             self.counter = 0;
@@ -187,17 +148,41 @@ impl BlockHandler {
         BlockHandler { points: points }
     }
 
-    fn get_points(&mut self) -> Vec<Point> {
+    fn next_block_index() -> u8 {
+        let mut rng = rand::thread_rng();
+        let between = Range::new(0, 7);
+        between.ind_sample(&mut rng)
+    }
+
+    fn get_points(&self) -> Vec<Point> {
         self.points.clone()
     }
 
-    fn handle(&mut self, keycode: Keycode) {
-        match keycode {
-            Keycode::Up => self.rotate(),
-            Keycode::Left => self.move_left(),
-            Keycode::Right => self.move_right(),
-            Keycode::Down => self.move_down(),
-            _ => (),
+    fn handle(&mut self, events: &mut EventPump) {
+        for event in events.poll_iter() {
+            match event {
+                Event::KeyDown { keycode: Some(Keycode::Up), .. } => self.rotate(),
+                Event::KeyDown { keycode: Some(Keycode::Left), .. } => self.move_left(),
+                Event::KeyDown { keycode: Some(Keycode::Right), .. } => self.move_right(),
+                Event::KeyDown { keycode: Some(Keycode::Down), .. } => self.move_down(),
+                _ => (),
+            }
+
+            let range = self.range();
+
+            if range.x() < 0 {
+                self.shift(|| (range.x().abs(), 0));
+            }
+
+            let right = range.x() + range.width() as i32;
+            if right >= COLUMNS as i32 {
+                self.shift(|| (COLUMNS as i32 - right, 0));
+            }
+
+            let bottom = range.y() + range.height() as i32;
+            if bottom >= ROWS as i32 {
+                self.shift(|| (0, ROWS as i32 - bottom));
+            }
         }
     }
 
@@ -207,7 +192,7 @@ impl BlockHandler {
     fn rotate(&mut self) {
         let angle = PI * 1.5_f32;
 
-        let center = self.center();
+        let center = self.center_point();
 
         let mut points = self.points
             .iter()
@@ -255,11 +240,11 @@ impl BlockHandler {
         self.shift(|| (0, 1));
     }
 
-    fn center(&mut self) -> Point {
+    fn center_point(&mut self) -> Point {
         Point::new(self.points[2].x(), self.points[2].y())
     }
 
-    fn range(&mut self) -> Rect {
+    fn range(&self) -> Rect {
 
         let mut min_x = i32::max_value();
         let mut max_x = i32::min_value();
@@ -285,8 +270,8 @@ impl BlockHandler {
         Rect::new(
             min_x,
             min_y,
-            (max_x - min_x).abs() as u32,
-            (max_y - min_y).abs() as u32,
+            (max_x - min_x).abs() as u32 + 1,
+            (max_y - min_y).abs() as u32 + 1,
         )
     }
 
@@ -296,12 +281,68 @@ impl BlockHandler {
     }
 }
 
+struct Block {
+    // index: u8,
+    points: Vec<Point>,
+    color: Color,
+    is_freeze: bool,
+}
+
+impl Block {
+    fn new(index: u8) -> Block {
+
+        let points: Vec<Point> = BLOCKS[index as usize]
+            .iter()
+            .map(|raw_point| {
+                Point::new(raw_point.0 as i32, raw_point.1 as i32)
+            })
+            .collect();
+
+        let (r, g, b) = COLORS[index as usize];
+        let color = Color::RGB(r, g, b);
+
+        Block {
+            // index: index,
+            points: points,
+            color: color,
+            is_freeze: false,
+        }
+    }
+
+    // fn index(&self) -> u8 {
+    //     self.index
+    // }
+
+    fn points(&self) -> Vec<Point> {
+        self.points.clone()
+    }
+
+    fn color(&self) -> Color {
+        self.color.clone()
+    }
+
+    fn update(&mut self, points: &mut Vec<Point>) {
+        let block_handler = BlockHandler::new(points.clone());
+        let range = block_handler.range();
+
+        if range.y() + range.height() as i32 >= ROWS as i32 {
+            self.is_freeze = true;
+        }
+
+        self.points.truncate(0);
+        self.points.append(points);
+    }
+
+    fn is_freezed(&self) -> bool {
+        self.is_freeze == true
+    }
+}
+
 struct App<'a> {
     canvas: Canvas<Window>,
     events: EventPump,
     texture: Texture<'a>,
-    current_block: Vec<Point>,
-    key_handler: KeyHandler,
+    block: Block,
     gravity: Gravity,
 }
 
@@ -320,51 +361,37 @@ impl<'a> App<'a> {
             canvas: canvas,
             events: events,
             texture: texture,
-            current_block: BLOCK_Z
-                .iter()
-                .map(|raw_point| {
-                    Point::new(raw_point.0 as i32, raw_point.1 as i32)
-                })
-                .collect(),
-            key_handler: KeyHandler::new(),
+            block: Block::new(BlockHandler::next_block_index()),
             gravity: Gravity::new(DEFAULT_GRAVITY),
         }
     }
 
     fn apply_gravity_to_current_block(&mut self) {
-        let applied = self.gravity.applied(&self.current_block);
-        if let Some(mut points) = applied {
-            self.current_block.truncate(0);
-            self.current_block.append(&mut points);
+        if self.block.is_freezed() {
+            return;
+        }
+
+        let block_handler = BlockHandler::new(self.block.points().clone());
+
+        let computed = self.gravity.compute(
+            &self.block.points,
+            block_handler.range(),
+        );
+
+        if let Some(mut points) = computed {
+            self.block.update(&mut points);
         }
     }
 
-    fn block_move_by_keyevent(&mut self) {
-        let events = &mut self.events;
-        let key_handler = &mut self.key_handler;
-
-        let mut block_handler = BlockHandler::new(self.current_block.clone());
-        for key in key_handler.get_keycodes(events) {
-            block_handler.handle(key);
-
-            let range = block_handler.range();
-
-            if range.x() < 0 {
-                for _ in 0..range.x().abs() {
-                    block_handler.move_right();
-                }
-            }
-
-            let right = range.x() + range.width() as i32;
-            if right >= COLUMNS as i32 {
-                for _ in 0..(right - COLUMNS as i32) + 1 {
-                    block_handler.move_left();
-                }
-            }
+    fn block_move_by_event(&mut self) {
+        if self.block.is_freezed() {
+            return;
         }
 
-        self.current_block.truncate(0);
-        self.current_block.append(&mut block_handler.get_points());
+        let events = &mut self.events;
+        let mut block_handler = BlockHandler::new(self.block.points().clone());
+        block_handler.handle(events);
+        self.block.update(&mut block_handler.get_points());
     }
 
     fn draw_background(&mut self) {
@@ -372,14 +399,16 @@ impl<'a> App<'a> {
         self.canvas.clear();
     }
 
-    fn present(&mut self) {
+    fn render(&mut self) {
         self.canvas.present();
     }
 
     fn draw_current_block(&mut self) {
         let canvas = &mut self.canvas;
-        let points = &mut self.current_block;
         let texture = &mut self.texture;
+
+        let points = &self.block.points();
+        let color = self.block.color();
 
         for point in points.iter() {
             let src = Some(Rect::new(point.x(), point.y(), 1, 1));
@@ -393,7 +422,7 @@ impl<'a> App<'a> {
             canvas
                 .with_texture_canvas(texture, |texture_canvas| {
                     texture_canvas.clear();
-                    texture_canvas.set_draw_color(Color::RGB(255, 0, 0));
+                    texture_canvas.set_draw_color(color);
                     texture_canvas
                         .draw_point(Point::new(point.x(), point.y()))
                         .unwrap();
@@ -406,9 +435,9 @@ impl<'a> App<'a> {
 
     fn draw(&mut self) {
         self.apply_gravity_to_current_block();
-        self.block_move_by_keyevent();
+        self.block_move_by_event();
         self.draw_background();
         self.draw_current_block();
-        self.present();
+        self.render();
     }
 }
