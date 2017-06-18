@@ -1,24 +1,31 @@
 extern crate emscripten_sys as asm;
 extern crate rand;
 extern crate sdl2;
+#[macro_use]
+extern crate lazy_static;
 
 use std::cell::RefCell;
 use std::f32::consts::PI;
 use std::mem;
 use std::os::raw::c_void;
 use std::rc::Rc;
+use std::collections::HashSet;
 
 use rand::distributions::{IndependentSample, Range};
 
 use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture, TextureCreator, WindowCanvas};
 use sdl2::video::{Window, WindowContext};
 
+const LEFT_PANEL: u32 = 4;
+const RIGHT_PANEL: u32 = 4;
 const COLUMNS: u32 = 10;
+const WINDOW_WIDTH: u32 = LEFT_PANEL + RIGHT_PANEL + COLUMNS;
 const ROWS: u32 = 20;
 const SCALE: u32 = 20;
 const DEFAULT_GRAVITY: u8 = 20;
@@ -60,7 +67,7 @@ const COLOR_LIME: (u8, u8, u8) = (128, 255, 0);
 const COLOR_RED: (u8, u8, u8) = (255, 0, 0);
 const COLOR_YELLOW: (u8, u8, u8) = (255, 255, 0);
 const COLOR_CYAN: (u8, u8, u8) = (0, 255, 255);
-const COLOR_WHITE: (u8, u8, u8) = (0, 0, 0);
+const COLOR_BLACK: (u8, u8, u8) = (0, 0, 0);
 
 enum BlockType {
     T,
@@ -128,7 +135,7 @@ fn main() {
     let events = sdl_context.event_pump().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("Test", COLUMNS * SCALE, ROWS * SCALE)
+        .window("Test", WINDOW_WIDTH * SCALE, ROWS * SCALE)
         .build()
         .unwrap();
     let canvas: WindowCanvas = window
@@ -210,32 +217,30 @@ impl BlockHandler {
         self.points.clone()
     }
 
-    fn handle(&mut self, events: &mut EventPump, grid: &Grid) {
-        for event in events.poll_iter() {
-            match event {
-                Event::KeyDown { keycode: Some(Keycode::Up), .. } => self.rotate(),
-                Event::KeyDown { keycode: Some(Keycode::Left), .. } => self.move_left(grid),
-                Event::KeyDown { keycode: Some(Keycode::Right), .. } => self.move_right(grid),
-                Event::KeyDown { keycode: Some(Keycode::Down), .. } => self.move_down(),
-                Event::KeyDown { keycode: Some(Keycode::Space), .. } => self.drop_down(grid),
-                _ => (),
-            }
+    fn handle(&mut self, event: &BlockEvent, grid: &Grid) {
+        match event {
+            &BlockEvent::Rotate => self.rotate(),
+            &BlockEvent::Left => self.move_left(grid),
+            &BlockEvent::Right => self.move_right(grid),
+            &BlockEvent::Down => self.move_down(),
+            &BlockEvent::Drop => self.drop_down(grid),
+            _ => (),
+        }
 
-            let range = self.range();
+        let range = self.range();
 
-            if range.x() < 0 {
-                self.shift(|| (range.x().abs(), 0));
-            }
+        if range.x() < 0 {
+            self.shift(|| (range.x().abs(), 0));
+        }
 
-            let right = range.x() + range.width() as i32;
-            if right >= COLUMNS as i32 {
-                self.shift(|| (COLUMNS as i32 - right, 0));
-            }
+        let right = range.x() + range.width() as i32;
+        if right >= COLUMNS as i32 {
+            self.shift(|| (COLUMNS as i32 - right, 0));
+        }
 
-            let bottom = range.y() + range.height() as i32;
-            if bottom >= ROWS as i32 {
-                self.shift(|| (0, ROWS as i32 - bottom));
-            }
+        let bottom = range.y() + range.height() as i32;
+        if bottom >= ROWS as i32 {
+            self.shift(|| (0, ROWS as i32 - bottom));
         }
     }
 
@@ -352,11 +357,21 @@ impl BlockHandler {
     }
 }
 
+#[derive(PartialEq, Eq, Hash)]
+enum BlockEvent {
+    Left,
+    Right,
+    Down,
+    Drop,
+    Rotate,
+    None,
+}
+
 struct Block {
     block_type: BlockType,
     color: Color,
-    event_emmiter: EventEmitter,
-    is_freeze: bool,
+    event_emmiter: EventEmitter<AppEvent>,
+    freeze: bool,
     points: Vec<Point>,
 }
 
@@ -370,7 +385,7 @@ impl Block {
             block_type: block_type,
             points: points,
             color: color,
-            is_freeze: false,
+            freeze: false,
             event_emmiter: EventEmitter::new(),
         }
     }
@@ -407,7 +422,7 @@ impl Block {
 
         self.points = points;
         self.color = Self::block_type_to_color(&self.block_type);
-        self.is_freeze = false;
+        self.freeze = false;
 
     }
 
@@ -422,7 +437,7 @@ impl Block {
     fn update(&mut self, points: &mut Vec<Point>, grid: &mut Grid) {
         if grid.is_full_below(points) {
             grid.fill(points, &self.block_type);
-            self.is_freeze = true;
+            self.freeze = true;
         }
 
         self.points.truncate(0);
@@ -430,10 +445,10 @@ impl Block {
     }
 
     fn is_freezed(&self) -> bool {
-        self.is_freeze == true
+        self.freeze == true
     }
 
-    fn add_block_listener(&mut self, listener: Rc<RefCell<Listener>>) {
+    fn add_block_listener(&mut self, listener: Rc<RefCell<Listener<AppEvent>>>) {
         self.event_emmiter.on(listener);
     }
 
@@ -444,20 +459,20 @@ impl Block {
 }
 
 struct Grid {
-    blocked: bool,
+    freeze: bool,
     data: [[u8; COLUMNS as usize]; ROWS as usize],
 }
 
 impl Grid {
     fn new() -> Grid {
         Grid {
-            blocked: false,
+            freeze: false,
             data: [[0; COLUMNS as usize]; ROWS as usize],
         }
     }
 
-    fn is_blocked(&self) -> bool {
-        self.blocked
+    fn is_freezed(&self) -> bool {
+        self.freeze
     }
 
     fn fill(&mut self, points: &Vec<Point>, block_type: &BlockType) {
@@ -556,54 +571,98 @@ enum AppEvent {
     NewBlock(Vec<Point>),
 }
 
-trait Listener {
-    fn listen(&mut self, app_event: &AppEvent);
+trait Listener<T> {
+    fn listen(&mut self, event: &T);
 }
 
-struct EventEmitter {
-    listeners: Vec<Rc<RefCell<Listener>>>,
+struct EventEmitter<T> {
+    listeners: Vec<Rc<RefCell<Listener<T>>>>,
 }
 
-impl EventEmitter {
-    fn new() -> EventEmitter {
+impl<T> EventEmitter<T> {
+    fn new() -> EventEmitter<T> {
         EventEmitter { listeners: Vec::new() }
     }
 
-    fn on(&mut self, listener: Rc<RefCell<Listener>>) {
+    fn on(&mut self, listener: Rc<RefCell<Listener<T>>>) {
         self.listeners.push(listener);
     }
 
-    fn trigger(&mut self, app_event: AppEvent) {
+    fn trigger(&mut self, event: T) {
         let ref listeners = self.listeners;
         for l in listeners {
-            l.borrow_mut().listen(&app_event);
+            l.borrow_mut().listen(&event);
         }
     }
 }
 
-impl<'a> Listener for Grid {
-    fn listen(&mut self, app_event: &AppEvent) {
-        if app_event == &AppEvent::Landing {
+impl<'a> Listener<AppEvent> for Grid {
+    fn listen(&mut self, event: &AppEvent) {
+        if event == &AppEvent::Landing {
             for row in self.find_full_row() {
                 self.remove_row(row as usize);
             }
-        } else if let &AppEvent::NewBlock(ref points) = app_event {
+        } else if let &AppEvent::NewBlock(ref points) = event {
             if self.is_full_points(points) {
-                self.blocked = true;
+                self.freeze = true;
             }
         }
     }
 }
 
-struct Draw;
-impl Draw {
-    fn background(canvas: &mut Canvas<Window>) {
-        let (r, g, b) = COLOR_WHITE;
-        canvas.set_draw_color(Color::RGB(r, g, b));
-        canvas.clear();
+enum Panel {
+    Left,
+    Center,
+    Right,
+}
+
+impl Panel {
+    fn x(&self) -> i32 {
+        match *self {
+            Panel::Left => 0,
+            Panel::Center => LEFT_PANEL as i32,
+            Panel::Right => (LEFT_PANEL + COLUMNS) as i32,
+        }
     }
 
-    fn point(canvas: &mut Canvas<Window>, texture: &mut Texture, x: i32, y: i32, color: Color) {
+    fn width(&self) -> u32 {
+        match *self {
+            Panel::Left => LEFT_PANEL,
+            Panel::Center => COLUMNS,
+            Panel::Right => RIGHT_PANEL,
+        }
+    }
+
+    fn background(&self, canvas: &mut Canvas<Window>, texture: &mut Texture, color: Color) {
+        let src = Some(Rect::new(self.x(), 0, self.width(), ROWS));
+        let dst = Some(Rect::new(
+            self.x() * SCALE as i32,
+            0,
+            self.width() * SCALE,
+            ROWS * SCALE,
+        ));
+
+        canvas
+            .with_texture_canvas(texture, |texture_canvas| {
+                texture_canvas.clear();
+                texture_canvas.set_draw_color(color);
+                texture_canvas
+                    .fill_rect(Rect::new(self.x(), 0, self.width(), ROWS))
+                    .unwrap();
+            })
+            .unwrap();
+
+        canvas.copy(&texture, src, dst).unwrap();
+    }
+
+    fn block_piece(
+        &self,
+        canvas: &mut Canvas<Window>,
+        texture: &mut Texture,
+        x: i32,
+        y: i32,
+        color: Color,
+    ) {
         let src = Some(Rect::new(x, y, 1, 1));
         let dst = Some(Rect::new(
             x * SCALE as i32 + 1,
@@ -624,20 +683,33 @@ impl Draw {
     }
 
     fn block(
+        &self,
         canvas: &mut Canvas<Window>,
         texture: &mut Texture,
         color: Color,
         points: &Vec<Point>,
     ) {
         for point in points {
-            Draw::point(canvas, texture, point.x(), point.y(), color);
+            Panel::Center.block_piece(
+                canvas,
+                texture,
+                Panel::Center.x() + point.x(),
+                point.y(),
+                color,
+            );
         }
     }
 
-    fn grid(canvas: &mut Canvas<Window>, texture: &mut Texture, grid: &Grid) {
+    fn grid(&self, canvas: &mut Canvas<Window>, texture: &mut Texture, grid: &Grid) {
         grid.traverse(|x, y, value| if value > 0 {
             let (r, g, b) = BlockType::new(value).color();
-            Draw::point(canvas, texture, x, y, Color::RGB(r, g, b));
+            Panel::Center.block_piece(
+                canvas,
+                texture,
+                Panel::Center.x() + x,
+                y,
+                Color::RGB(r, g, b),
+            );
         });
     }
 }
@@ -659,7 +731,7 @@ impl<'a> App<'a> {
     ) -> App {
 
         let texture = texture_creator
-            .create_texture_target(None, COLUMNS, ROWS)
+            .create_texture_target(None, WINDOW_WIDTH, ROWS)
             .unwrap();
 
         let grid = Grid::new();
@@ -677,8 +749,25 @@ impl<'a> App<'a> {
         }
     }
 
-    fn apply_gravity(&mut self) {
-        if self.block.is_freezed() || self.grid.borrow().is_blocked() {
+    fn event(&mut self) -> HashSet<BlockEvent> {
+        let mut events: HashSet<BlockEvent> = self.events
+            .poll_iter()
+            .map(|event| match event {
+                Event::KeyDown { keycode: Some(Keycode::Up), .. } => BlockEvent::Rotate,
+                Event::KeyDown { keycode: Some(Keycode::Left), .. } => BlockEvent::Left,
+                Event::KeyDown { keycode: Some(Keycode::Right), .. } => BlockEvent::Right,
+                Event::KeyDown { keycode: Some(Keycode::Down), .. } => BlockEvent::Down,
+                Event::KeyDown { keycode: Some(Keycode::Space), .. } => BlockEvent::Drop,
+                Event::KeyDown { keycode: Some(Keycode::A), .. } => BlockEvent::Drop,
+                Event::FingerDown { x, .. } if x < 80. as f32 => BlockEvent::Left,
+                _ => BlockEvent::None,
+            })
+            .collect();
+        events
+    }
+
+    fn block_gravity(&mut self) {
+        if self.block.is_freezed() || self.grid.borrow().is_freezed() {
             return;
         }
 
@@ -698,13 +787,13 @@ impl<'a> App<'a> {
         }
     }
 
-    fn block_move_by_event(&mut self) {
-        if self.block.is_freezed() || self.grid.borrow().is_blocked() {
+    fn block_event(&mut self, event: &BlockEvent) {
+        if self.block.is_freezed() || self.grid.borrow().is_freezed() {
             return;
         }
 
         let mut block_handler = BlockHandler::new(self.block.points().clone());
-        block_handler.handle(&mut self.events, &self.grid.borrow());
+        block_handler.handle(&event, &self.grid.borrow());
 
         self.block.update(
             &mut block_handler.get_points(),
@@ -721,15 +810,17 @@ impl<'a> App<'a> {
     }
 
     fn draw_background(&mut self) {
-        Draw::background(&mut self.canvas);
+        Panel::Left.background(&mut self.canvas, &mut self.texture, Color::RGB(0, 128, 128));
+        Panel::Center.background(&mut self.canvas, &mut self.texture, Color::RGB(0, 128, 0));
+        Panel::Right.background(&mut self.canvas, &mut self.texture, Color::RGB(128, 128, 0));
     }
 
     fn draw_block(&mut self) {
-        if self.grid.borrow().is_blocked() {
+        if self.grid.borrow().is_freezed() {
             return;
         }
 
-        Draw::block(
+        Panel::Center.block(
             &mut self.canvas,
             &mut self.texture,
             self.block.color(),
@@ -738,12 +829,15 @@ impl<'a> App<'a> {
     }
 
     fn draw_grid(&mut self) {
-        Draw::grid(&mut self.canvas, &mut self.texture, &self.grid.borrow());
+        Panel::Center.grid(&mut self.canvas, &mut self.texture, &self.grid.borrow());
     }
 
     fn run(&mut self) {
-        self.apply_gravity();
-        self.block_move_by_event();
+        let events: HashSet<BlockEvent> = self.event();
+        for event in events {
+            self.block_event(&event);
+        }
+        self.block_gravity();
 
         self.draw_background();
         self.draw_block();
