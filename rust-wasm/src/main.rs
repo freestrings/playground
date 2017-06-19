@@ -10,23 +10,26 @@ use std::mem;
 use std::os::raw::c_void;
 use std::rc::Rc;
 use std::collections::HashSet;
+use std::sync::Mutex;
 
 use rand::distributions::{IndependentSample, Range};
 
 use sdl2::EventPump;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture, TextureCreator, WindowCanvas};
 use sdl2::video::{Window, WindowContext};
 
-const LEFT_PANEL: u32 = 4;
-const RIGHT_PANEL: u32 = 4;
 const COLUMNS: u32 = 10;
-const WINDOW_WIDTH: u32 = LEFT_PANEL + RIGHT_PANEL + COLUMNS;
 const ROWS: u32 = 20;
+
+const BORDER: u32 = 1;
+const WINDOW_WIDTH: u32 = BORDER + COLUMNS + RIGHT_PANEL + BORDER;
+const WINDOW_HEIGHT: u32 = BORDER + ROWS + BORDER;
+const RIGHT_PANEL: u32 = 4;
+
 const SCALE: u32 = 20;
 const DEFAULT_GRAVITY: u8 = 20;
 
@@ -130,12 +133,56 @@ impl BlockType {
     }
 }
 
+lazy_static! {
+    static ref EVENT_Q: Mutex<Vec<BlockEvent>> = Mutex::new(vec![]);
+}
+
+fn _move(block_event: BlockEvent) -> u8 {
+    match EVENT_Q.lock() {
+        Ok(mut v) => {
+            v.push(block_event);
+            0
+        }
+        Err(_) => 1,
+    }
+}
+
+#[no_mangle]
+pub fn move_left() -> u8 {
+    println!("click left");
+    _move(BlockEvent::Left)
+}
+
+#[no_mangle]
+pub fn move_right() -> u8 {
+    println!("click right");
+    _move(BlockEvent::Right)
+}
+
+#[no_mangle]
+pub fn move_down() -> u8 {
+    println!("click down");
+    _move(BlockEvent::Down)
+}
+
+#[no_mangle]
+pub fn move_rotate() -> u8 {
+    println!("click rotate");
+    _move(BlockEvent::Rotate)
+}
+
+#[no_mangle]
+pub fn move_drop() -> u8 {
+    println!("click drop");
+    _move(BlockEvent::Drop)
+}
+
 fn main() {
     let sdl_context = sdl2::init().unwrap();
     let events = sdl_context.event_pump().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("Test", WINDOW_WIDTH * SCALE, ROWS * SCALE)
+        .window("Test", WINDOW_WIDTH * SCALE, WINDOW_HEIGHT * SCALE)
         .build()
         .unwrap();
     let canvas: WindowCanvas = window
@@ -611,44 +658,68 @@ impl<'a> Listener<AppEvent> for Grid {
 }
 
 enum Panel {
-    Left,
-    Center,
+    Window,
+    Main,
     Right,
 }
 
 impl Panel {
     fn x(&self) -> i32 {
         match *self {
-            Panel::Left => 0,
-            Panel::Center => LEFT_PANEL as i32,
-            Panel::Right => (LEFT_PANEL + COLUMNS) as i32,
+            Panel::Window => 0,
+            Panel::Main => BORDER as i32,
+            Panel::Right => BORDER as i32 + COLUMNS as i32,
+        }
+    }
+
+    fn y(&self) -> i32 {
+        match *self {
+            Panel::Window => 0,
+            Panel::Main => BORDER as i32,
+            Panel::Right => BORDER as i32,
         }
     }
 
     fn width(&self) -> u32 {
         match *self {
-            Panel::Left => LEFT_PANEL,
-            Panel::Center => COLUMNS,
+            Panel::Window => WINDOW_WIDTH,
+            Panel::Main => COLUMNS,
             Panel::Right => RIGHT_PANEL,
         }
     }
 
-    fn background(&self, canvas: &mut Canvas<Window>, texture: &mut Texture, color: Color) {
-        let src = Some(Rect::new(self.x(), 0, self.width(), ROWS));
+    fn height(&self) -> u32 {
+        match *self {
+            Panel::Window => WINDOW_HEIGHT,
+            Panel::Main => ROWS,
+            Panel::Right => ROWS,
+        }
+    }
+
+    fn background(
+        &self,
+        canvas: &mut Canvas<Window>,
+        texture: &mut Texture,
+        color: Color,
+        border: bool,
+    ) {
+        let src = Rect::new(self.x(), self.y(), self.width(), self.height());
         let dst = Some(Rect::new(
             self.x() * SCALE as i32,
-            0,
+            self.y() * SCALE as i32,
             self.width() * SCALE,
-            ROWS * SCALE,
+            self.height() * SCALE,
         ));
 
         canvas
             .with_texture_canvas(texture, |texture_canvas| {
                 texture_canvas.clear();
                 texture_canvas.set_draw_color(color);
-                texture_canvas
-                    .fill_rect(Rect::new(self.x(), 0, self.width(), ROWS))
-                    .unwrap();
+                if border {
+                    texture_canvas.draw_rect(src).unwrap();
+                } else {
+                    texture_canvas.fill_rect(src).unwrap();
+                }
             })
             .unwrap();
 
@@ -673,7 +744,6 @@ impl Panel {
 
         canvas
             .with_texture_canvas(texture, |texture_canvas| {
-                texture_canvas.clear();
                 texture_canvas.set_draw_color(color);
                 texture_canvas.draw_point(Point::new(x, y)).unwrap();
             })
@@ -690,11 +760,11 @@ impl Panel {
         points: &Vec<Point>,
     ) {
         for point in points {
-            Panel::Center.block_piece(
+            Panel::Main.block_piece(
                 canvas,
                 texture,
-                Panel::Center.x() + point.x(),
-                point.y(),
+                Panel::Main.x() + point.x(),
+                Panel::Main.y() + point.y(),
                 color,
             );
         }
@@ -703,11 +773,11 @@ impl Panel {
     fn grid(&self, canvas: &mut Canvas<Window>, texture: &mut Texture, grid: &Grid) {
         grid.traverse(|x, y, value| if value > 0 {
             let (r, g, b) = BlockType::new(value).color();
-            Panel::Center.block_piece(
+            Panel::Main.block_piece(
                 canvas,
                 texture,
-                Panel::Center.x() + x,
-                y,
+                Panel::Main.x() + x,
+                Panel::Main.y() + y,
                 Color::RGB(r, g, b),
             );
         });
@@ -731,7 +801,7 @@ impl<'a> App<'a> {
     ) -> App {
 
         let texture = texture_creator
-            .create_texture_target(None, WINDOW_WIDTH, ROWS)
+            .create_texture_target(None, WINDOW_WIDTH, WINDOW_HEIGHT)
             .unwrap();
 
         let grid = Grid::new();
@@ -763,6 +833,15 @@ impl<'a> App<'a> {
                 _ => BlockEvent::None,
             })
             .collect();
+
+        match EVENT_Q.lock() {
+            Ok(mut v) => {
+                while let Some(e) = v.pop() {
+                    events.insert(e);
+                }
+            }
+            Err(_) => (),
+        }
         events
     }
 
@@ -810,9 +889,10 @@ impl<'a> App<'a> {
     }
 
     fn draw_background(&mut self) {
-        Panel::Left.background(&mut self.canvas, &mut self.texture, Color::RGB(0, 128, 128));
-        Panel::Center.background(&mut self.canvas, &mut self.texture, Color::RGB(0, 128, 0));
-        Panel::Right.background(&mut self.canvas, &mut self.texture, Color::RGB(128, 128, 0));
+        let (r, g, b) = COLOR_BLACK;
+        Panel::Window.background(&mut self.canvas, &mut self.texture, Color::RGB(r, g, b), false);
+        Panel::Main.background(&mut self.canvas, &mut self.texture, Color::RGB(r, g, b), false);
+        Panel::Right.background(&mut self.canvas, &mut self.texture, Color::RGB(r, g, b), false);
     }
 
     fn draw_block(&mut self) {
@@ -820,7 +900,7 @@ impl<'a> App<'a> {
             return;
         }
 
-        Panel::Center.block(
+        Panel::Main.block(
             &mut self.canvas,
             &mut self.texture,
             self.block.color(),
@@ -829,12 +909,14 @@ impl<'a> App<'a> {
     }
 
     fn draw_grid(&mut self) {
-        Panel::Center.grid(&mut self.canvas, &mut self.texture, &self.grid.borrow());
+        Panel::Main.grid(&mut self.canvas, &mut self.texture, &self.grid.borrow());
     }
 
     fn run(&mut self) {
-        let events: HashSet<BlockEvent> = self.event();
-        for event in events {
+        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        self.canvas.clear();
+
+        for event in self.event() {
             self.block_event(&event);
         }
         self.block_gravity();
