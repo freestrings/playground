@@ -26,9 +26,9 @@ const COLUMNS: u32 = 10;
 const ROWS: u32 = 20;
 
 const BORDER: u32 = 1;
-const WINDOW_WIDTH: u32 = BORDER + COLUMNS + RIGHT_PANEL + BORDER;
+const WINDOW_WIDTH: u32 = BORDER + COLUMNS + BORDER + RIGHT_PANEL + BORDER;
 const WINDOW_HEIGHT: u32 = BORDER + ROWS + BORDER;
-const RIGHT_PANEL: u32 = 4;
+const RIGHT_PANEL: u32 = 5;
 
 const SCALE: u32 = 20;
 const DEFAULT_GRAVITY: u8 = 20;
@@ -38,15 +38,13 @@ const DEFAULT_GRAVITY: u8 = 20;
 // #, @, #
 const BLOCK_T: &[(u8, u8)] = &[(1, 0), (0, 1), (1, 1), (2, 1)];
 //
-//    #
-//    @
-// #, #
-const BLOCK_J: &[(u8, u8)] = &[(0, 2), (1, 2), (1, 1), (1, 0)];
-//
 // #
-// @
-// #, #
-const BLOCK_L: &[(u8, u8)] = &[(1, 2), (0, 2), (0, 1), (0, 0)];
+// #, @, #
+const BLOCK_J: &[(u8, u8)] = &[(0, 0), (0, 1), (1, 1), (2, 1)];
+//
+//       #
+// #, @, #
+const BLOCK_L: &[(u8, u8)] = &[(2, 0), (2, 1), (1, 1), (0, 1)];
 //
 //    #, #
 // #, @
@@ -60,7 +58,7 @@ const BLOCK_Z: &[(u8, u8)] = &[(0, 0), (1, 0), (1, 1), (2, 1)];
 // #, #
 const BLOCK_O: &[(u8, u8)] = &[(0, 0), (1, 0), (0, 1), (1, 1)];
 //
-// #, #, #, #
+// #, #, @, #
 const BLOCK_I: &[(u8, u8)] = &[(0, 0), (1, 0), (2, 0), (3, 0)];
 
 const COLOR_PURPLE: (u8, u8, u8) = (128, 0, 128);
@@ -71,85 +69,6 @@ const COLOR_RED: (u8, u8, u8) = (255, 0, 0);
 const COLOR_YELLOW: (u8, u8, u8) = (255, 255, 0);
 const COLOR_CYAN: (u8, u8, u8) = (0, 255, 255);
 const COLOR_BLACK: (u8, u8, u8) = (0, 0, 0);
-
-type Points = Vec<Point>;
-
-#[derive(Clone, Debug)]
-enum BlockType {
-    T,
-    J,
-    L,
-    S,
-    Z,
-    O,
-    I,
-}
-
-impl BlockType {
-    fn new(index: u8) -> BlockType {
-        match index {
-            1 => BlockType::T,
-            2 => BlockType::J,
-            3 => BlockType::L,
-            4 => BlockType::S,
-            5 => BlockType::Z,
-            6 => BlockType::O,
-            7 => BlockType::I,
-            _ => BlockType::T,
-        }
-    }
-
-    fn random() -> BlockType {
-        let mut rng = rand::thread_rng();
-        let between = Range::new(1, 8);
-        BlockType::new(between.ind_sample(&mut rng))
-    }
-
-    fn index(&self) -> u8 {
-        match *self {
-            BlockType::T => 1,
-            BlockType::J => 2,
-            BlockType::L => 3,
-            BlockType::S => 4,
-            BlockType::Z => 5,
-            BlockType::O => 6,
-            BlockType::I => 7,
-        }
-    }
-
-    fn point(&self) -> &[(u8, u8)] {
-        match *self {
-            BlockType::T => BLOCK_T,
-            BlockType::J => BLOCK_J,
-            BlockType::L => BLOCK_L,
-            BlockType::S => BLOCK_S,
-            BlockType::Z => BLOCK_Z,
-            BlockType::O => BLOCK_O,
-            BlockType::I => BLOCK_I,
-        }
-    }
-
-    fn color(&self) -> (u8, u8, u8) {
-        match *self {
-            BlockType::T => COLOR_PURPLE,
-            BlockType::J => COLOR_BLUE,
-            BlockType::L => COLOR_ORANGE,
-            BlockType::S => COLOR_LIME,
-            BlockType::Z => COLOR_RED,
-            BlockType::O => COLOR_YELLOW,
-            BlockType::I => COLOR_CYAN,
-        }
-    }
-
-    fn as_points(&self) -> Points {
-        self.point()
-            .iter()
-            .map(|raw_point| {
-                Point::new(raw_point.0 as i32, raw_point.1 as i32)
-            })
-            .collect()
-    }
-}
 
 lazy_static! {
     static ref EVENT_Q: Mutex<Vec<BlockEvent>> = Mutex::new(vec![]);
@@ -228,6 +147,85 @@ extern "C" fn main_loop_callback(arg: *mut c_void) {
     }
 }
 
+type Points = Vec<Point>;
+
+#[derive(Clone, Debug, PartialEq)]
+enum BlockType {
+    T,
+    J,
+    L,
+    S,
+    Z,
+    O,
+    I,
+}
+
+impl BlockType {
+    fn new(index: u8) -> BlockType {
+        match index {
+            1 => BlockType::T,
+            2 => BlockType::J,
+            3 => BlockType::L,
+            4 => BlockType::S,
+            5 => BlockType::Z,
+            6 => BlockType::O,
+            7 => BlockType::I,
+            _ => BlockType::T,
+        }
+    }
+
+    fn random() -> BlockType {
+        let mut rng = rand::thread_rng();
+        let between = Range::new(1, 8);
+        BlockType::new(between.ind_sample(&mut rng))
+    }
+
+    fn index(&self) -> u8 {
+        match *self {
+            BlockType::T => 1,
+            BlockType::J => 2,
+            BlockType::L => 3,
+            BlockType::S => 4,
+            BlockType::Z => 5,
+            BlockType::O => 6,
+            BlockType::I => 7,
+        }
+    }
+
+    fn point(&self) -> &[(u8, u8)] {
+        match *self {
+            BlockType::T => BLOCK_T,
+            BlockType::J => BLOCK_J,
+            BlockType::L => BLOCK_L,
+            BlockType::S => BLOCK_S,
+            BlockType::Z => BLOCK_Z,
+            BlockType::O => BLOCK_O,
+            BlockType::I => BLOCK_I,
+        }
+    }
+
+    fn color(&self) -> (u8, u8, u8) {
+        match *self {
+            BlockType::T => COLOR_PURPLE,
+            BlockType::J => COLOR_BLUE,
+            BlockType::L => COLOR_ORANGE,
+            BlockType::S => COLOR_LIME,
+            BlockType::Z => COLOR_RED,
+            BlockType::O => COLOR_YELLOW,
+            BlockType::I => COLOR_CYAN,
+        }
+    }
+
+    fn as_points(&self) -> Points {
+        self.point()
+            .iter()
+            .map(|raw_point| {
+                Point::new(raw_point.0 as i32, raw_point.1 as i32)
+            })
+            .collect()
+    }
+}
+
 struct Gravity {
     counter: i32,
     amount: u8,
@@ -263,7 +261,7 @@ impl Gravity {
     }
 }
 
-trait PointTransform {
+trait PointTransformer {
     fn get_points_ref(&mut self) -> &Points;
 
     fn replace(&mut self, points: &mut Points);
@@ -271,9 +269,9 @@ trait PointTransform {
     //
     // https://www.youtube.com/watch?v=Atlr5vvdchY
     //
-    fn rotate(&mut self, center: Point) {
+    fn rotate(&mut self) {
         let angle = PI * 0.5_f32;
-
+        let center = Point::new(self.get_points_ref()[2].x(), self.get_points_ref()[2].y());
         let mut points = self.get_points_ref()
             .iter()
             .map(|point| {
@@ -389,7 +387,7 @@ struct BlockHandler {
     points: Points,
 }
 
-impl PointTransform for BlockHandler {
+impl PointTransformer for BlockHandler {
     fn get_points_ref(&mut self) -> &Points {
         &self.points
     }
@@ -409,19 +407,20 @@ impl BlockHandler {
         self.points.clone()
     }
 
-    fn handle<GARD>(&mut self, event: &BlockEvent, rollback_gard: GARD)
+    fn handle<GARD>(&mut self, event: &BlockEvent, block_type: &BlockType, grid_checker: GARD)
     where
         GARD: Fn(&Points) -> bool,
     {
         match event {
             &BlockEvent::Rotate => {
-                let center = Point::new(self.points[2].x(), self.points[2].y());
-                self.rotate(center);
+                if block_type != &BlockType::O {
+                    self.rotate();
+                }
             }
-            &BlockEvent::Left => self.move_left(rollback_gard),
-            &BlockEvent::Right => self.move_right(rollback_gard),
-            &BlockEvent::Down => self.move_down(rollback_gard),
-            &BlockEvent::Drop => self.drop_down(rollback_gard),
+            &BlockEvent::Left => self.move_left(grid_checker),
+            &BlockEvent::Right => self.move_right(grid_checker),
+            &BlockEvent::Down => self.move_down(grid_checker),
+            &BlockEvent::Drop => self.drop_down(grid_checker),
             _ => (),
         }
 
@@ -458,6 +457,7 @@ struct Block {
     color: Color,
     event_emmiter: EventEmitter<AppEvent>,
     points: Points,
+    next: Option<Box<Block>>,
 }
 
 impl Block {
@@ -469,10 +469,18 @@ impl Block {
             points: points,
             color: Color::RGB(r, g, b),
             event_emmiter: EventEmitter::new(),
+            next: None,
         }
     }
 
-    fn reset_points(&mut self) {
+    fn calc_next(&mut self) {
+        let block = Block::new(BlockType::random());
+        let points = block.points();
+        self.next = Some(Box::new(block));
+        self.event_emmiter.emit(AppEvent::ReadyNext(points));
+    }
+
+    fn align_to_start(&mut self) {
         let points: Points = self.block_type.as_points();
         let mut block_handler = BlockHandler::new(points);
         let range = block_handler.range();
@@ -487,14 +495,18 @@ impl Block {
     }
 
     fn reset(&mut self) {
-        let next_block = Block::new(BlockType::random());
-        self.block_type = next_block.block_type.clone();
-        self.color = next_block.color;
-        self.points = next_block.points();
-        self.reset_points();
+        if let Some(ref mut block) = self.next {
+            self.block_type = block.block_type.clone();
+            self.color = block.color;
+        } else {
+            panic!("Error: fail to allocate the next block");
+        }
 
+        self.align_to_start();
         let points = self.points();
         self.event_emmiter.emit(AppEvent::NewBlock(points));
+
+        self.calc_next();
     }
 
     fn points(&self) -> Points {
@@ -637,58 +649,31 @@ impl Grid {
 #[derive(PartialEq)]
 enum AppEvent {
     Landing,
+    ReadyNext(Points),
     NewBlock(Points),
 }
 
-trait Listener<T> {
-    fn listen(&mut self, event: &T);
-}
-
-struct EventEmitter<T> {
-    listeners: Vec<Rc<RefCell<Listener<T>>>>,
-}
-
-impl<T> EventEmitter<T> {
-    fn new() -> EventEmitter<T> {
-        EventEmitter { listeners: Vec::new() }
-    }
-
-    fn on(&mut self, listener: Rc<RefCell<Listener<T>>>) {
-        self.listeners.push(listener);
-    }
-
-    fn emit(&mut self, event: T) {
-        let ref listeners = self.listeners;
-        for l in listeners {
-            l.borrow_mut().listen(&event);
-        }
-    }
-}
-
-impl<'a> Listener<AppEvent> for Grid {
-    fn listen(&mut self, event: &AppEvent) {
-        if event == &AppEvent::Landing {
-            for row in self.find_full_row() {
-                self.remove_row(row as usize);
-            }
-        } else if let &AppEvent::NewBlock(ref points) = event {
-            if !self.is_empty_below(points) {}
-        }
-    }
-}
-
-enum AppState {
+#[derive(PartialEq)]
+enum KindOfAppState {
     Start,
     Finish,
 }
 
 struct AppState {
-    state: AppState,
+    state: KindOfAppState,
+    grid: Rc<RefCell<Grid>>,
 }
 
-impl<'a> Listener<AppEvent> for AppState {
-    fn listen(&mut self, event: &AppEvent) {
-        
+impl AppState {
+    fn new(grid: Rc<RefCell<Grid>>) -> AppState {
+        AppState {
+            state: KindOfAppState::Start,
+            grid: grid,
+        }
+    }
+
+    fn is_finish(&self) -> bool {
+        self.state == KindOfAppState::Finish
     }
 }
 
@@ -703,7 +688,7 @@ impl Panel {
         match *self {
             Panel::Window => 0,
             Panel::Main => BORDER as i32,
-            Panel::Right => BORDER as i32 + COLUMNS as i32,
+            Panel::Right => BORDER as i32 + COLUMNS as i32 + BORDER as i32,
         }
     }
 
@@ -739,22 +724,27 @@ impl Panel {
         border: bool,
     ) {
         let src = Rect::new(self.x(), self.y(), self.width(), self.height());
-        let dst = Some(Rect::new(
-            self.x() * SCALE as i32,
-            self.y() * SCALE as i32,
-            self.width() * SCALE,
-            self.height() * SCALE,
-        ));
+        let dst = if border {
+            Some(Rect::new(
+                self.x() * SCALE as i32 - 1,
+                self.y() * SCALE as i32 - 1,
+                self.width() * SCALE + 2,
+                self.height() * SCALE + 2,
+            ))
+        } else {
+            Some(Rect::new(
+                self.x() * SCALE as i32,
+                self.y() * SCALE as i32,
+                self.width() * SCALE,
+                self.height() * SCALE,
+            ))
+        };
 
         canvas
             .with_texture_canvas(texture, |texture_canvas| {
                 texture_canvas.clear();
                 texture_canvas.set_draw_color(color);
-                if border {
-                    texture_canvas.draw_rect(src).unwrap();
-                } else {
-                    texture_canvas.fill_rect(src).unwrap();
-                }
+                texture_canvas.fill_rect(src).unwrap();
             })
             .unwrap();
 
@@ -795,11 +785,14 @@ impl Panel {
         points: &Points,
     ) {
         for point in points {
-            Panel::Main.block_piece(
+            if point.y() < 0 {
+                continue;
+            }
+            self.block_piece(
                 canvas,
                 texture,
-                Panel::Main.x() + point.x(),
-                Panel::Main.y() + point.y(),
+                self.x() + point.x(),
+                self.y() + point.y(),
                 color,
             );
         }
@@ -808,11 +801,11 @@ impl Panel {
     fn grid(&self, canvas: &mut Canvas<Window>, texture: &mut Texture, grid: &Grid) {
         grid.traverse(|x, y, value| if value > 0 {
             let (r, g, b) = BlockType::new(value).color();
-            Panel::Main.block_piece(
+            self.block_piece(
                 canvas,
                 texture,
-                Panel::Main.x() + x,
-                Panel::Main.y() + y,
+                self.x() + x,
+                self.y() + y,
                 Color::RGB(r, g, b),
             );
         });
@@ -826,6 +819,7 @@ struct App<'a> {
     block: Block,
     gravity: Gravity,
     grid: Rc<RefCell<Grid>>,
+    app_state: Rc<RefCell<AppState>>,
 }
 
 impl<'a> App<'a> {
@@ -840,12 +834,15 @@ impl<'a> App<'a> {
             .unwrap();
 
         let mut block = Block::new(BlockType::random());
-        block.reset_points();
+        block.calc_next();
+        block.align_to_start();
 
         let grid = Grid::new();
         let grid = Rc::new(RefCell::new(grid));
+        let app_state = Rc::new(RefCell::new(AppState::new(grid.clone())));
 
         block.add_block_listener(grid.clone());
+        block.add_block_listener(app_state.clone());
 
         App {
             canvas: canvas,
@@ -853,7 +850,8 @@ impl<'a> App<'a> {
             events: events,
             block: block,
             gravity: Gravity::new(DEFAULT_GRAVITY),
-            grid: grid,
+            grid: grid.clone(),
+            app_state: app_state.clone(),
         }
     }
 
@@ -898,7 +896,9 @@ impl<'a> App<'a> {
 
     fn block_event(&mut self, event: &BlockEvent) {
         let mut block_handler = BlockHandler::new(self.block.points().clone());
-        block_handler.handle(&event, |points| !self.grid.borrow().is_empty(points));
+        block_handler.handle(&event, &self.block.block_type, |points| {
+            !self.grid.borrow().is_empty(points)
+        });
 
         if self.block.update(
             &mut block_handler.get_points(),
@@ -915,24 +915,45 @@ impl<'a> App<'a> {
 
     fn draw_background(&mut self) {
         let (r, g, b) = COLOR_BLACK;
-        Panel::Window.background(
+        self.canvas.set_draw_color(Color::RGB(r, g, b));
+        self.canvas.clear();
+
+        // Panel::Window.background(
+        //     &mut self.canvas,
+        //     &mut self.texture,
+        //     Color::RGB(r, g, b),
+        //     false,
+        // );
+
+        let (r, g, b) = COLOR_BLUE;
+        Panel::Main.background(
             &mut self.canvas,
             &mut self.texture,
             Color::RGB(r, g, b),
-            false,
+            true,
         );
+        let (r, g, b) = COLOR_BLACK;
         Panel::Main.background(
             &mut self.canvas,
             &mut self.texture,
             Color::RGB(r, g, b),
             false,
         );
-        Panel::Right.background(
-            &mut self.canvas,
-            &mut self.texture,
-            Color::RGB(r, g, b),
-            false,
-        );
+
+        // let (r, g, b) = COLOR_ORANGE;
+        // Panel::Right.background(
+        //     &mut self.canvas,
+        //     &mut self.texture,
+        //     Color::RGB(r, g, b),
+        //     true,
+        // );
+        // let (r, g, b) = COLOR_BLACK;
+        // Panel::Right.background(
+        //     &mut self.canvas,
+        //     &mut self.texture,
+        //     Color::RGB(r, g, b),
+        //     false,
+        // );
     }
 
     fn draw_block(&mut self) {
@@ -941,7 +962,19 @@ impl<'a> App<'a> {
             &mut self.texture,
             self.block.color(),
             &self.block.points(),
-        )
+        );
+
+        if let Some(ref block) = self.block.next {
+            let mut block_handler = BlockHandler::new(block.points());
+            block_handler.shift(|| (1, 1));
+
+            Panel::Right.block(
+                &mut self.canvas,
+                &mut self.texture,
+                block.color(),
+                &block_handler.get_points_ref(),
+            );
+        }
     }
 
     fn draw_grid(&mut self) {
@@ -949,19 +982,66 @@ impl<'a> App<'a> {
     }
 
     fn run(&mut self) {
-        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
-        self.canvas.clear();
+        if self.app_state.borrow().is_finish() {
+            //
+        } else {
+            for event in self.event() {
+                self.block_event(&event);
+            }
+            self.block_gravity();
 
-        for event in self.event() {
-            self.block_event(&event);
+            self.draw_background();
+            self.draw_block();
+            self.draw_grid();
+
+            self.present();
         }
-        self.block_gravity();
 
-        self.draw_background();
-        self.draw_block();
-        self.draw_grid();
 
-        self.present();
+    }
+}
 
+trait Listener<T> {
+    fn listen(&mut self, event: &T);
+}
+
+struct EventEmitter<T> {
+    listeners: Vec<Rc<RefCell<Listener<T>>>>,
+}
+
+impl<T> EventEmitter<T> {
+    fn new() -> EventEmitter<T> {
+        EventEmitter { listeners: Vec::new() }
+    }
+
+    fn on(&mut self, listener: Rc<RefCell<Listener<T>>>) {
+        self.listeners.push(listener);
+    }
+
+    fn emit(&mut self, event: T) {
+        let ref listeners = self.listeners;
+        for l in listeners {
+            l.borrow_mut().listen(&event);
+        }
+    }
+}
+
+impl<'a> Listener<AppEvent> for Grid {
+    fn listen(&mut self, event: &AppEvent) {
+        if event == &AppEvent::Landing {
+            for row in self.find_full_row() {
+                self.remove_row(row as usize);
+            }
+        }
+    }
+}
+
+impl<'a> Listener<AppEvent> for AppState {
+    fn listen(&mut self, event: &AppEvent) {
+        if let &AppEvent::NewBlock(ref points) = event {
+            if !self.grid.borrow().is_empty_below(points) {
+                self.state = KindOfAppState::Finish;
+            }
+        }
     }
 }
