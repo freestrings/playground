@@ -308,37 +308,37 @@ trait PointTransform {
         self.replace(&mut points);
     }
 
-    fn move_left<GARD>(&mut self, gard: GARD)
+    fn move_left<GARD>(&mut self, rollback_gard: GARD)
     where
         GARD: Fn(&Points) -> bool,
     {
         self.shift(|| (-1, 0));
-        if gard(self.get_points_ref()) {
+        if rollback_gard(self.get_points_ref()) {
             self.shift(|| (1, 0));
         }
     }
 
-    fn move_right<GARD>(&mut self, gard: GARD)
+    fn move_right<GARD>(&mut self, rollback_gard: GARD)
     where
         GARD: Fn(&Points) -> bool,
     {
         self.shift(|| (1, 0));
-        if gard(self.get_points_ref()) {
+        if rollback_gard(self.get_points_ref()) {
             self.shift(|| (-1, 0));
         }
     }
 
-    fn move_down<GARD>(&mut self, gard: GARD)
+    fn move_down<GARD>(&mut self, rollback_gard: GARD)
     where
         GARD: Fn(&Points) -> bool,
     {
         self.shift(|| (0, 1));
-        if gard(self.get_points_ref()) {
+        if rollback_gard(self.get_points_ref()) {
             self.shift(|| (0, -1));
         }
     }
 
-    fn drop_down<GARD>(&mut self, gard: GARD)
+    fn drop_down<GARD>(&mut self, rollback_gard: GARD)
     where
         GARD: Fn(&Points) -> bool,
     {
@@ -346,7 +346,7 @@ trait PointTransform {
         let start_y = range.y() + range.height() as i32;
         for _ in start_y..ROWS as i32 {
             self.shift(|| (0, 1));
-            if gard(self.get_points_ref()) {
+            if rollback_gard(self.get_points_ref()) {
                 self.shift(|| (0, -1));
                 break;
             }
@@ -409,7 +409,7 @@ impl BlockHandler {
         self.points.clone()
     }
 
-    fn handle<GARD>(&mut self, event: &BlockEvent, gard: GARD)
+    fn handle<GARD>(&mut self, event: &BlockEvent, rollback_gard: GARD)
     where
         GARD: Fn(&Points) -> bool,
     {
@@ -418,10 +418,10 @@ impl BlockHandler {
                 let center = Point::new(self.points[2].x(), self.points[2].y());
                 self.rotate(center);
             }
-            &BlockEvent::Left => self.move_left(gard),
-            &BlockEvent::Right => self.move_right(gard),
-            &BlockEvent::Down => self.move_down(gard),
-            &BlockEvent::Drop => self.drop_down(gard),
+            &BlockEvent::Left => self.move_left(rollback_gard),
+            &BlockEvent::Right => self.move_right(rollback_gard),
+            &BlockEvent::Down => self.move_down(rollback_gard),
+            &BlockEvent::Drop => self.drop_down(rollback_gard),
             _ => (),
         }
 
@@ -457,7 +457,6 @@ struct Block {
     block_type: BlockType,
     color: Color,
     event_emmiter: EventEmitter<AppEvent>,
-    freeze: bool,
     points: Points,
 }
 
@@ -469,7 +468,6 @@ impl Block {
             block_type: block_type,
             points: points,
             color: Color::RGB(r, g, b),
-            freeze: false,
             event_emmiter: EventEmitter::new(),
         }
     }
@@ -479,7 +477,12 @@ impl Block {
         let mut block_handler = BlockHandler::new(points);
         let range = block_handler.range();
         let center = range.width() / 2;
-        block_handler.shift(|| ((COLUMNS / 2) as i32 - center as i32, range.height() as i32 * -1));
+        block_handler.shift(|| {
+            (
+                (COLUMNS / 2) as i32 - center as i32,
+                range.height() as i32 * -1,
+            )
+        });
         self.points = block_handler.get_points();
     }
 
@@ -487,13 +490,11 @@ impl Block {
         let next_block = Block::new(BlockType::random());
         self.block_type = next_block.block_type.clone();
         self.color = next_block.color;
-        self.points = next_block.points.clone();
-        self.freeze = false;
+        self.points = next_block.points();
         self.reset_points();
 
-        self.event_emmiter.emit(
-            AppEvent::NewBlock(next_block.points()),
-        );
+        let points = self.points();
+        self.event_emmiter.emit(AppEvent::NewBlock(points));
     }
 
     fn points(&self) -> Points {
@@ -504,18 +505,18 @@ impl Block {
         self.color.clone()
     }
 
-    fn update(&mut self, points: &mut Points, grid: &mut Grid) {
-        if grid.is_full_below(points) {
+    fn update(&mut self, points: &mut Points, grid: &mut Grid) -> bool {
+        let added_to_grid = if !grid.is_empty_below(points) || grid.is_reach_to_end(points) {
             grid.fill(points, &self.block_type);
-            self.freeze = true;
-        }
+            true
+        } else {
+            false
+        };
 
         self.points.truncate(0);
         self.points.append(points);
-    }
 
-    fn is_freezed(&self) -> bool {
-        self.freeze == true
+        added_to_grid
     }
 
     fn add_block_listener(&mut self, listener: Rc<RefCell<Listener<AppEvent>>>) {
@@ -529,64 +530,55 @@ impl Block {
 }
 
 struct Grid {
-    freeze: bool,
     data: [[u8; COLUMNS as usize]; ROWS as usize],
 }
 
 impl Grid {
     fn new() -> Grid {
-        Grid {
-            freeze: false,
-            data: [[0; COLUMNS as usize]; ROWS as usize],
-        }
+        Grid { data: [[0; COLUMNS as usize]; ROWS as usize] }
     }
 
-    fn is_freezed(&self) -> bool {
-        self.freeze
+    fn check_index_rage(&self, point: &Point) -> bool {
+        point.y() >= 0 && point.y() < ROWS as i32 && point.x() >= 0 && point.x() < COLUMNS as i32
     }
 
     fn fill(&mut self, points: &Points, block_type: &BlockType) {
         let index = block_type.index();
+        let points: Vec<&Point> = points
+            .iter()
+            .filter(|point| self.check_index_rage(point))
+            .collect();
+
         for point in points {
-            if point.y() < 0 || point.x() < 0 || point.y() >= ROWS as i32 || point.x() >= COLUMNS as i32 {
-                continue;
-            }
             self.data[point.y() as usize][point.x() as usize] = index;
         }
     }
 
-    fn is_full_below(&self, points: &Points) -> bool {
-        let mut block_handler = BlockHandler::new(points.clone());
-        block_handler.move_down(|_| false);
-
-        for point in block_handler.get_points() {
-            if point.y() < 0 || point.x() < 0 {
-                return false;
-            }
-
-            if self.data.len() as i32 <= point.y() {
-                return true;
-            }
-            if self.data[point.y() as usize][point.x() as usize] > 0 {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    fn is_full_points(&self, points: &Points) -> bool {
+    fn is_reach_to_end(&self, points: &Points) -> bool {
         let c: Vec<&Point> = points
             .iter()
-            .filter(|point| {
-                point.y() >= 0 && point.y() < ROWS as i32 && point.x() >= 0 && point.x() < COLUMNS as i32
-            })
+            .filter(|point| point.y() == ROWS as i32 - 1)
+            .collect();
+
+        c.len() > 0
+    }
+
+    fn is_empty_below(&self, points: &Points) -> bool {
+        let mut block_handler = BlockHandler::new(points.clone());
+        block_handler.move_down(|_| false);
+        self.is_empty(block_handler.get_points_ref())
+    }
+
+    fn is_empty(&self, points: &Points) -> bool {
+        let c: Vec<&Point> = points
+            .iter()
+            .filter(|point| self.check_index_rage(point))
             .filter(|point| {
                 self.data[point.y() as usize][point.x() as usize] > 0
             })
             .collect();
 
-        c.len() > 0
+        c.len() == 0
     }
 
     fn traverse<F>(&self, mut func: F)
@@ -680,10 +672,23 @@ impl<'a> Listener<AppEvent> for Grid {
                 self.remove_row(row as usize);
             }
         } else if let &AppEvent::NewBlock(ref points) = event {
-            if self.is_full_points(points) {
-                self.freeze = true;
-            }
+            if !self.is_empty_below(points) {}
         }
+    }
+}
+
+enum AppState {
+    Start,
+    Finish,
+}
+
+struct AppState {
+    state: AppState,
+}
+
+impl<'a> Listener<AppEvent> for AppState {
+    fn listen(&mut self, event: &AppEvent) {
+        
     }
 }
 
@@ -839,7 +844,7 @@ impl<'a> App<'a> {
 
         let grid = Grid::new();
         let grid = Rc::new(RefCell::new(grid));
-        
+
         block.add_block_listener(grid.clone());
 
         App {
@@ -861,8 +866,6 @@ impl<'a> App<'a> {
                 Event::KeyDown { keycode: Some(Keycode::Right), .. } => BlockEvent::Right,
                 Event::KeyDown { keycode: Some(Keycode::Down), .. } => BlockEvent::Down,
                 Event::KeyDown { keycode: Some(Keycode::Space), .. } => BlockEvent::Drop,
-                Event::KeyDown { keycode: Some(Keycode::A), .. } => BlockEvent::Drop,
-                Event::FingerDown { x, .. } if x < 80. as f32 => BlockEvent::Left,
                 _ => BlockEvent::None,
             })
             .collect();
@@ -879,10 +882,6 @@ impl<'a> App<'a> {
     }
 
     fn block_gravity(&mut self) {
-        if self.block.is_freezed() || self.grid.borrow().is_freezed() {
-            return;
-        }
-
         let mut block_handler = BlockHandler::new(self.block.points().clone());
 
         let computed = self.gravity.compute(
@@ -891,28 +890,21 @@ impl<'a> App<'a> {
         );
 
         if let Some(mut points) = computed {
-            self.block.update(&mut points, &mut self.grid.borrow_mut());
-
-            if self.block.is_freezed() {
+            if self.block.update(&mut points, &mut self.grid.borrow_mut()) {
                 self.block.trigger_landing();
             }
         }
     }
 
     fn block_event(&mut self, event: &BlockEvent) {
-        if self.block.is_freezed() || self.grid.borrow().is_freezed() {
-            return;
-        }
-
         let mut block_handler = BlockHandler::new(self.block.points().clone());
-        block_handler.handle(&event, |points| self.grid.borrow().is_full_points(points));
+        block_handler.handle(&event, |points| !self.grid.borrow().is_empty(points));
 
-        self.block.update(
+        if self.block.update(
             &mut block_handler.get_points(),
             &mut self.grid.borrow_mut(),
-        );
-
-        if self.block.is_freezed() {
+        )
+        {
             self.block.trigger_landing();
         }
     }
@@ -944,10 +936,6 @@ impl<'a> App<'a> {
     }
 
     fn draw_block(&mut self) {
-        if self.grid.borrow().is_freezed() {
-            return;
-        }
-
         Panel::Main.block(
             &mut self.canvas,
             &mut self.texture,
