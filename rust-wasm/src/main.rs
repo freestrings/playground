@@ -24,12 +24,10 @@ use sdl2::video::{Window, WindowContext};
 
 const COLUMNS: u32 = 10;
 const ROWS: u32 = 20;
-
 const BORDER: u32 = 1;
 const WINDOW_WIDTH: u32 = BORDER + COLUMNS + BORDER + RIGHT_PANEL + BORDER;
 const WINDOW_HEIGHT: u32 = BORDER + ROWS + BORDER;
 const RIGHT_PANEL: u32 = 5;
-
 const SCALE: u32 = 20;
 const DEFAULT_GRAVITY: u8 = 20;
 
@@ -192,7 +190,21 @@ impl BlockType {
         }
     }
 
-    fn point(&self) -> &[(u8, u8)] {
+    fn color(&self) -> Color {
+        let (r, g, b) = match *self {
+            BlockType::T => COLOR_PURPLE,
+            BlockType::J => COLOR_BLUE,
+            BlockType::L => COLOR_ORANGE,
+            BlockType::S => COLOR_LIME,
+            BlockType::Z => COLOR_RED,
+            BlockType::O => COLOR_YELLOW,
+            BlockType::I => COLOR_CYAN,
+        };
+
+        Color::RGB(r, g, b)
+    }
+
+    fn points(&self) -> Points {
         match *self {
             BlockType::T => BLOCK_T,
             BlockType::J => BLOCK_J,
@@ -201,24 +213,7 @@ impl BlockType {
             BlockType::Z => BLOCK_Z,
             BlockType::O => BLOCK_O,
             BlockType::I => BLOCK_I,
-        }
-    }
-
-    fn color(&self) -> (u8, u8, u8) {
-        match *self {
-            BlockType::T => COLOR_PURPLE,
-            BlockType::J => COLOR_BLUE,
-            BlockType::L => COLOR_ORANGE,
-            BlockType::S => COLOR_LIME,
-            BlockType::Z => COLOR_RED,
-            BlockType::O => COLOR_YELLOW,
-            BlockType::I => COLOR_CYAN,
-        }
-    }
-
-    fn as_points(&self) -> Points {
-        self.point()
-            .iter()
+        }.iter()
             .map(|raw_point| {
                 Point::new(raw_point.0 as i32, raw_point.1 as i32)
             })
@@ -462,12 +457,12 @@ struct Block {
 
 impl Block {
     fn new(block_type: BlockType) -> Block {
-        let (r, g, b) = block_type.color();
-        let points = block_type.as_points();
+        let points = block_type.points();
+        let color = block_type.color();
         Block {
             block_type: block_type,
             points: points,
-            color: Color::RGB(r, g, b),
+            color: color,
             event_emmiter: EventEmitter::new(),
             next: None,
         }
@@ -481,7 +476,7 @@ impl Block {
     }
 
     fn align_to_start(&mut self) {
-        let points: Points = self.block_type.as_points();
+        let points: Points = self.block_type.points();
         let mut block_handler = BlockHandler::new(points);
         let range = block_handler.range();
         let center = range.width() / 2;
@@ -593,7 +588,7 @@ impl Grid {
         c.len() == 0
     }
 
-    fn traverse<F>(&self, mut func: F)
+    fn for_each_cell<F>(&self, mut func: F)
     where
         F: FnMut(i32, i32, u8),
     {
@@ -799,14 +794,13 @@ impl Panel {
     }
 
     fn grid(&self, canvas: &mut Canvas<Window>, texture: &mut Texture, grid: &Grid) {
-        grid.traverse(|x, y, value| if value > 0 {
-            let (r, g, b) = BlockType::new(value).color();
+        grid.for_each_cell(|x, y, value| if value > 0 {
             self.block_piece(
                 canvas,
                 texture,
                 self.x() + x,
                 self.y() + y,
-                Color::RGB(r, g, b),
+                BlockType::new(value).color(),
             );
         });
     }
