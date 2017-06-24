@@ -347,7 +347,6 @@ trait PointTransformer {
     }
 
     fn range(&mut self) -> Rect {
-
         let mut min_x = i32::max_value();
         let mut max_x = i32::min_value();
         let mut min_y = i32::max_value();
@@ -420,16 +419,25 @@ impl BlockHandler {
         }
 
         let range = self.range();
-
+        self.check_left_bound(&range);
+        self.check_right_bound(&range);
+        self.check_bottom_bound(&range);
+    }
+    
+    fn check_left_bound(&mut self, range: &Rect) {
         if range.x() < 0 {
             self.shift(|| (range.x().abs(), 0));
         }
+    }
 
+    fn check_right_bound(&mut self, range: &Rect) {
         let right = range.x() + range.width() as i32;
         if right >= COLUMNS as i32 {
             self.shift(|| (COLUMNS as i32 - right, 0));
         }
+    }
 
+    fn check_bottom_bound(&mut self, range: &Rect) {
         let bottom = range.y() + range.height() as i32;
         if bottom >= ROWS as i32 {
             self.shift(|| (0, ROWS as i32 - bottom));
@@ -641,37 +649,6 @@ impl Grid {
     }
 }
 
-#[derive(PartialEq)]
-enum AppEvent {
-    Landing,
-    ReadyNext(Points),
-    NewBlock(Points),
-}
-
-#[derive(PartialEq)]
-enum KindOfAppState {
-    Start,
-    Finish,
-}
-
-struct AppState {
-    state: KindOfAppState,
-    grid: Rc<RefCell<Grid>>,
-}
-
-impl AppState {
-    fn new(grid: Rc<RefCell<Grid>>) -> AppState {
-        AppState {
-            state: KindOfAppState::Start,
-            grid: grid,
-        }
-    }
-
-    fn is_finish(&self) -> bool {
-        self.state == KindOfAppState::Finish
-    }
-}
-
 enum Panel {
     Window,
     Main,
@@ -803,6 +780,37 @@ impl Panel {
                 BlockType::new(value).color(),
             );
         });
+    }
+}
+
+#[derive(PartialEq)]
+enum AppEvent {
+    Landing,
+    ReadyNext(Points),
+    NewBlock(Points),
+}
+
+#[derive(PartialEq)]
+enum KindOfAppState {
+    Start,
+    Finish,
+}
+
+struct AppState {
+    state: KindOfAppState,
+    grid: Rc<RefCell<Grid>>,
+}
+
+impl AppState {
+    fn new(grid: Rc<RefCell<Grid>>) -> AppState {
+        AppState {
+            state: KindOfAppState::Start,
+            grid: grid,
+        }
+    }
+
+    fn is_finish(&self) -> bool {
+        self.state == KindOfAppState::Finish
     }
 }
 
