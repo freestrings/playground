@@ -24,3 +24,6 @@ out/
 
 #Rust
 **/*.lock
+
+#nodejs
+node_modules
