@@ -1,0 +1,4 @@
+docker stop mysql-slave-of-slave > /dev/null 2>&1
+docker rm mysql-slave-of-slave > /dev/null 2>&1
+echo $(docker run --name mysql-slave-of-slave -p 3308:3306 --link mysql-slave:mysql-slave -v "$PWD/../mysql-slave-of-slave":/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=root -d mysql:5.5) \
+    | xargs docker inspect
