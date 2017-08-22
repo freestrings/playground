@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Hello {
 
     @Autowired
-    private BinaryLogClientCreator binaryLogClientCreator;
+    private BinaryLogProcessor binaryLogProcessor;
 
     public static void main(String... args) {
         SpringApplication.run(Hello.class, args);

@@ -17,4 +17,9 @@ hello:
     user: repl
     password: slavepass
   meta:
-    available-tables: dep, dep2
+    available-tables:
+      DEP:
+        - "NO"
+      DEP2:
+        - "NO"
+        - "NAME"
