@@ -2,5 +2,8 @@ package hello;
 
 public interface CustomerOp {
 
-    void updateCompany(String id, int index, String name);
+    int updateCompany(String name, int index, String companyName);
+
+    Customer findUsingName(String name);
+
 }
