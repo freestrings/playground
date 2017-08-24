@@ -9,6 +9,7 @@ import org.springframework.util.Assert;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -78,12 +79,17 @@ public class MongoTest implements CommandLineRunner {
         public void run() {
             int index = this.id * this.work;
             IntStream.range(index, index + this.work).forEach(c -> {
-                Customer customer = repository.findByName("Customer" + c);
-                Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
+//                Customer customer = repository.findByName("Customer" + c);
+//                Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
+                repository.findUsingName("Customer" + c);
                 if (c % 1000 == 0 && c > 0) {
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
                     this.time = _time;
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                    }
                 }
             });
             System.out.println("Select done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
@@ -140,13 +146,21 @@ public class MongoTest implements CommandLineRunner {
             new Thread(new _Insert(0, 1)).start();
         } else if ("select".equals(command)) {
             System.out.println("Start Select");
-            int worker = 4;
+            int worker = 2;
             int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
                 executorService.execute(new _Select(t, total / worker));
             }
             executorService.shutdown();
+        } else if ("selectOne".equals(command)) {
+            System.out.println("Start Select One");
+            repository.findUsingName("Customer1");
+        } else if ("select1000".equals(command)) {
+            System.out.println("Start Select 1000");
+            long t = System.currentTimeMillis();
+            IntStream.range(0, 1000).forEach(i -> repository.findUsingName("Customer" + i));
+            System.out.println(System.currentTimeMillis() - t);
         } else if ("update".equals(command)) {
             System.out.println("Start Update");
             int worker = 4;
