@@ -6,10 +6,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.util.Assert;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -47,17 +47,31 @@ public class MongoTest implements CommandLineRunner {
                     .mapToObj(i -> new Company("Company" + i))
                     .collect(Collectors.toList());
 
+            List<Customer> customers = new ArrayList<>();
             IntStream.range(index, index + this.work).forEach(c -> {
                 Customer customer = new Customer();
                 customer.setName("Customer" + c);
                 customer.setCompanies(companies);
-                repository.save(customer);
+                customers.add(customer);
                 if (c % 1000 == 0 && c > 0) {
+//                    repository.save(customers);
+                    int result = repository.saveCustomers(customers);
+                    Assert.isTrue(customers.size() == result, "Fail to insert");
+                    customers.clear();
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
                     this.time = _time;
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                    }
                 }
             });
+
+            if(customers.size() > 0) {
+                int result = repository.saveCustomers(customers);
+                Assert.isTrue(customers.size() == result, "Fail to insert");
+            }
             System.out.println("Insert done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }
     }
@@ -79,9 +93,8 @@ public class MongoTest implements CommandLineRunner {
         public void run() {
             int index = this.id * this.work;
             IntStream.range(index, index + this.work).forEach(c -> {
-//                Customer customer = repository.findByName("Customer" + c);
-//                Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
-                repository.findUsingName("Customer" + c);
+                Customer customer = repository.findByName("Customer" + c);
+                Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
                 if (c % 1000 == 0 && c > 0) {
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
@@ -146,7 +159,7 @@ public class MongoTest implements CommandLineRunner {
             new Thread(new _Insert(0, 1)).start();
         } else if ("select".equals(command)) {
             System.out.println("Start Select");
-            int worker = 2;
+            int worker = 4;
             int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {

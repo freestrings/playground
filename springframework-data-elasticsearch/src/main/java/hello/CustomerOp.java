@@ -1,9 +1,13 @@
 package hello;
 
+import org.springframework.data.elasticsearch.core.query.IndexQuery;
+
+import java.util.List;
+
 public interface CustomerOp {
 
-    int updateCompany(String name, int index, String companyName);
+    String updateCompany(String name, String message);
 
-    void findUsingName(String name);
+    void saveCustomers(List<IndexQuery> queries);
 
 }
