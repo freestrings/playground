@@ -15,6 +15,54 @@ import java.util.stream.IntStream;
 
 /**
  * docker run --name mongo-test -p 0.0.0.0:27017:27017 -p 0.0.0.0:28017:28017 -d mongo
+ * <p>
+ * ➜  springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar insert 10000 4 50 -10000:4:50-
+ * <p>
+ * Start Insert
+ * Insert done0: 11.355
+ * Insert done3: 11.388
+ * Insert done2: 11.457
+ * Insert done1: 11.627
+ * <p>
+ * springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar insert 10000 4 100 -10000:4:100-
+ * <p>
+ * Insert done0: 11.392
+ * Insert done3: 11.595
+ * Insert done1: 11.655
+ * Insert done2: 11.691
+ * <p>
+ * ➜  springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar insert 10000 4 200 -10000:4:200-
+ * <p>
+ * Insert done0: 13.337
+ * Insert done3: 13.852
+ * Insert done1: 14.052
+ * Insert done2: 14.176
+ * <p>
+ * ➜  springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar update 10000 4 100 -10000:4:100:update-
+ * <p>
+ * Update done2: 4.203
+ * Update done0: 4.239
+ * Update done1: 4.346
+ * Update done3: 4.361
+ * <p>
+ * ➜  springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar select 10000 4 1000 0
+ * Select done2: 7.374
+ * Select done0: 7.439
+ * Select done3: 7.631
+ * Select done1: 7.648
+ * <p>
+ * ➜  springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar select 10000 2 1000 0
+ * <p>
+ * Start Select
+ * Select done1: 8.769
+ * Select done0: 8.78
+ * ➜  springframework-data-mongo git:(master) ✗ java -jar target/springframework-data-mongo-1.0-SNAPSHOT.jar select 10000 4 1000 0
+ * <p>
+ * Start Select
+ * Select done2: 6.671
+ * Select done3: 6.738
+ * Select done0: 6.759
+ * Select done1: 6.777
  */
 @SpringBootApplication
 public class MongoTest implements CommandLineRunner {
@@ -31,11 +79,15 @@ public class MongoTest implements CommandLineRunner {
         private final int id;
         private final int work;
         private final long initialTime;
+        private final int commitCount;
+        private final String token;
         private long time;
 
-        _Insert(int id, int work) {
+        _Insert(int id, int work, int commitCount, String token) {
             this.id = id;
             this.work = work;
+            this.commitCount = commitCount;
+            this.token = token;
             this.initialTime = this.time = System.currentTimeMillis();
         }
 
@@ -44,7 +96,7 @@ public class MongoTest implements CommandLineRunner {
             int index = this.id * this.work;
 
             List<Company> companies = IntStream.range(0, 1000)
-                    .mapToObj(i -> new Company("Company" + i))
+                    .mapToObj(i -> new Company("Company" + token + i))
                     .collect(Collectors.toList());
 
             List<Customer> customers = new ArrayList<>();
@@ -53,10 +105,9 @@ public class MongoTest implements CommandLineRunner {
                 customer.setName("Customer" + c);
                 customer.setCompanies(companies);
                 customers.add(customer);
-                if (c % 1000 == 0 && c > 0) {
-//                    repository.save(customers);
+                if (c % commitCount == 0 && c > 0) {
                     int result = repository.saveCustomers(customers);
-                    Assert.isTrue(customers.size() == result, "Fail to insert");
+//                    Assert.isTrue(customers.size() == result, "Fail to insert");
                     customers.clear();
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
@@ -68,9 +119,9 @@ public class MongoTest implements CommandLineRunner {
                 }
             });
 
-            if(customers.size() > 0) {
+            if (customers.size() > 0) {
                 int result = repository.saveCustomers(customers);
-                Assert.isTrue(customers.size() == result, "Fail to insert");
+//                Assert.isTrue(customers.size() == result, "Fail to insert");
             }
             System.out.println("Insert done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }
@@ -81,11 +132,13 @@ public class MongoTest implements CommandLineRunner {
         private final int id;
         private final int work;
         private final long initialTime;
+        private final int commitCount;
         private long time;
 
-        _Select(int id, int work) {
+        _Select(int id, int work, int commitCount) {
             this.id = id;
             this.work = work;
+            this.commitCount = commitCount;
             this.initialTime = this.time = System.currentTimeMillis();
         }
 
@@ -95,7 +148,7 @@ public class MongoTest implements CommandLineRunner {
             IntStream.range(index, index + this.work).forEach(c -> {
                 Customer customer = repository.findByName("Customer" + c);
                 Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
-                if (c % 1000 == 0 && c > 0) {
+                if (c % commitCount == 0 && c > 0) {
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
                     this.time = _time;
@@ -114,11 +167,15 @@ public class MongoTest implements CommandLineRunner {
         private final int id;
         private final int work;
         private final long initialTime;
+        private final int commitCount;
+        private final String token;
         private long time;
 
-        _Update(int id, int work) {
+        _Update(int id, int work, int commitCount, String token) {
             this.id = id;
             this.work = work;
+            this.commitCount = commitCount;
+            this.token = token;
             this.initialTime = this.time = System.currentTimeMillis();
         }
 
@@ -126,9 +183,9 @@ public class MongoTest implements CommandLineRunner {
         public void run() {
             int index = this.id * this.work;
             IntStream.range(index, index + this.work).forEach(c -> {
-                int ret = repository.updateCompany("Customer" + c, 20, "Random");
+                long ret = repository.updateCompany("Customer" + c, 20, "Random" + token);
                 Assert.isTrue(ret == 1, "Fail to update");
-                if (c % 1000 == 0 && c > 0) {
+                if (c % commitCount == 0 && c > 0) {
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
                     this.time = _time;
@@ -144,26 +201,26 @@ public class MongoTest implements CommandLineRunner {
             return;
         }
         String command = args[0];
+        int total = Integer.parseInt(args[1]);
+        int worker = Integer.parseInt(args[2]);
+        int commitCount = Integer.parseInt(args[3]);
+        String token = args[4];
         if ("insert".equals(command)) {
             System.out.println("Start Insert");
-            int worker = 4;
-            int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Insert(t, total / worker));
+                executorService.execute(new _Insert(t, total / worker, commitCount, token));
             }
             executorService.shutdown();
 
         } else if ("insertOne".equals(command)) {
             System.out.println("Start");
-            new Thread(new _Insert(0, 1)).start();
+            new Thread(new _Insert(0, 1, commitCount, token)).start();
         } else if ("select".equals(command)) {
             System.out.println("Start Select");
-            int worker = 4;
-            int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Select(t, total / worker));
+                executorService.execute(new _Select(t, total / worker, commitCount));
             }
             executorService.shutdown();
         } else if ("selectOne".equals(command)) {
@@ -176,14 +233,13 @@ public class MongoTest implements CommandLineRunner {
             System.out.println(System.currentTimeMillis() - t);
         } else if ("update".equals(command)) {
             System.out.println("Start Update");
-            int worker = 4;
-            int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Update(t, total / worker));
+                executorService.execute(new _Update(t, total / worker, commitCount, token));
             }
             executorService.shutdown();
         } else if ("delete".equals(command)) {
+            System.out.println("Start Delete");
             repository.deleteAll();
         }
 

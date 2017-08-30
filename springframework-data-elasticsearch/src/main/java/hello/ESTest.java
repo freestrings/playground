@@ -22,6 +22,50 @@ import java.util.stream.IntStream;
  * @ https://www.elastic.co/guide/en/elasticsearch/reference/5.4/zip-targz.html install
  * - elasticsearch-5.4.3/config/elasticsearch.yml => cluster.name: customers으로 수정
  * - export=ES_JAVA_OPTS="-Xms512m -Xmx512m";./bin/elasticsearch
+ * <p>
+ * curl -XPUT 'http://localhost:9200/_all/_settings?preserve_existing=true' -d '{
+ * "index.refresh_interval" : "1s"
+ * }'
+ * <p>
+ * ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar insert 10000 4 1000 -10000:4:1000:1s-
+ * <p>
+ * Start Insert
+ * Insert done1: 19.25
+ * Insert done3: 20.942
+ * Insert done0: 21.778
+ * Insert done2: 22.964
+ * ➜  springframework-data-elasticsearch git:(master) ✗ curl -XPUT 'http://localhost:9200/customer_name/_settings?preserve_existing=true' -d '{
+ * "index.refresh_interval" : "30s"
+ * }'
+ * {"acknowledged":true}%                                                                                                                                                                                        ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar insert 10000 4 1000 -10000:4:1000:30s-
+ * <p>
+ * ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar insert 10000 4 1000 -10000:4:1000:30s-
+ * <p>
+ * Start Insert
+ * Insert done1: 23.102
+ * Insert done3: 24.699
+ * Insert done2: 25.796
+ * Insert done0: 26.813
+ * <p>
+ * ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar select 10000 4 1000 \2
+ * <p>
+ * Start Select
+ * Select done3: 3.731
+ * Select done1: 3.79
+ * Select done2: 3.854
+ * Select done0: 3.885
+ * ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar select 10000 4 1000 0
+ * <p>
+ * Start Select
+ * Select done3: 2.891
+ * Select done2: 2.919
+ * Select done0: 2.923
+ * Select done1: 2.95
+ * ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar select 10000 2 1000 0
+ * <p>
+ * Start Select
+ * Select done0: 3.501
+ * Select done1: 3.542
  */
 @SpringBootApplication
 public class ESTest implements CommandLineRunner {
@@ -38,11 +82,15 @@ public class ESTest implements CommandLineRunner {
         private final int id;
         private final int work;
         private final long initialTime;
+        private final int countCount;
+        private final String token;
         private long time;
 
-        _Insert(int id, int work) {
+        _Insert(int id, int work, int countCount, String token) {
             this.id = id;
             this.work = work;
+            this.countCount = countCount;
+            this.token = token;
             this.initialTime = this.time = System.currentTimeMillis();
         }
 
@@ -56,10 +104,10 @@ public class ESTest implements CommandLineRunner {
 
             List<IndexQuery> queries = new ArrayList<>();
             IntStream.range(index, index + this.work).forEach(c -> {
-                Customer customer = new Customer("Customer" + c, "message-" + c, companies);
+                Customer customer = new Customer("Customer" + c, "message" + token + c, companies);
                 IndexQuery indexQuery = customer.toIndexQuery();
                 queries.add(indexQuery);
-                if (c % 1000 == 0 && c > 0) {
+                if (c % countCount == 0 && c > 0) {
                     repository.saveCustomers(queries);
                     queries.clear();
                     long _time = System.currentTimeMillis();
@@ -115,26 +163,39 @@ public class ESTest implements CommandLineRunner {
         private final int id;
         private final int work;
         private final long initialTime;
+        private final int commitCount;
+        private final String token;
         private long time;
 
-        _Update(int id, int work) {
+        _Update(int id, int work, int commitCount, String token) {
             this.id = id;
             this.work = work;
+            this.commitCount = commitCount;
+            this.token = token;
             this.initialTime = this.time = System.currentTimeMillis();
         }
 
         @Override
         public void run() {
             int index = this.id * this.work;
+            List<String> names = new ArrayList<>();
+            List<String> messages = new ArrayList<>();
             IntStream.range(index, index + this.work).forEach(c -> {
-                String ret = repository.updateCompany("Customer" + c, "message" + c);
-                Assert.isTrue(ret.equals("Customer" + c), "Fail to update");
-                if (c % 1000 == 0 && c > 0) {
+                names.add("Customer" + c);
+                messages.add("message" + token + c);
+                if (c % commitCount == 0 && c > 0) {
+                    repository.updateCompanies(names, messages);
+                    names.clear();
+                    messages.clear();
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
                     this.time = _time;
                 }
             });
+
+            if (names.size() > 0) {
+                repository.updateCompanies(names, messages);
+            }
             System.out.println("Update done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }
     }
@@ -142,25 +203,21 @@ public class ESTest implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         if (args.length == 0) {
+            System.out.println("command <count> <worker> <commitCount> <token>");
             return;
         }
         String command = args[0];
+        int total = Integer.parseInt(args[1]);
+        int worker = Integer.parseInt(args[2]);
+        int commitCount = Integer.parseInt(args[3]);
+        String token = args[4];
         if ("insert".equals(command)) {
-            /**
-             * Insert done1: 217.522
-             * Insert done0: 218.967
-             * Insert done3: 221.514
-             * Insert done2: 223.565
-             */
             System.out.println("Start Insert");
-            int worker = 4;
-            int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Insert(t, total / worker));
+                executorService.execute(new _Insert(t, total / worker, commitCount, token));
             }
             executorService.shutdown();
-
         } else if ("insertOne".equals(command)) {
             System.out.println("Start");
             List<Company> companies = IntStream.range(0, 1000)
@@ -170,48 +227,25 @@ public class ESTest implements CommandLineRunner {
             repository.save(customer0);
         } else if ("select".equals(command)) {
             System.out.println("Start Select");
-            int worker = 4;
-            int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
                 executorService.execute(new _Select(t, total / worker));
             }
             executorService.shutdown();
         } else if ("selectOne".equals(command)) {
-            System.out.println("Start Select One");
-            Customer customer0 = repository.findByName("Customer0");
-            Assert.isTrue(customer0.getName().equals("Customer0"), "Not matched");
-        } else if ("select1000".equals(command)) {
-            System.out.println("Start Select 1000");
-            long t = System.currentTimeMillis();
-            List<Customer> customers = IntStream.range(0, 1000).mapToObj(new IntFunction<Customer>() {
-                @Override
-                public Customer apply(int i) {
-                    return repository.findByName("Customer" + i);
-                }
-            }).collect(Collectors.toList());
-            System.out.println(customers.size());
-            System.out.println(System.currentTimeMillis() - t);
+            System.out.println("Start Select One: " + total);
+            Customer customer = repository.findByName("Customer" + total);
+            Assert.isTrue(customer.getName().equals("Customer" + total), "Not matched");
         } else if ("update".equals(command)) {
-            /**
-             * @ 약 4쓰레드 4개 각 12000개 정도 진행 후 멈추고 다시, 진행된 구간은 500ms 미만
-             *
-             * Update done0: 358.543
-             * Update done1: 358.875
-             * Update done3: 358.939
-             * Update done2: 360.33
-             */
             System.out.println("Start Update");
-            int worker = 4;
-            int total = 100000;
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Update(t, total / worker));
+                executorService.execute(new _Update(t, total / worker, commitCount, token));
             }
             executorService.shutdown();
         } else if ("updateOne".equals(command)) {
             System.out.println("Start Update One");
-            String id = "Customer0";
+            String id = "Customer" + total;
             String result = repository.updateCompany(id, "testa");
             Assert.isTrue(result.equals(id), "Fail to check update result");
         } else if ("delete".equals(command)) {
