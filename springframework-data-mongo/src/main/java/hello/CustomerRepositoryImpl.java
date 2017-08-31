@@ -1,6 +1,5 @@
 package hello;
 
-import com.mongodb.BulkWriteResult;
 import com.mongodb.client.result.UpdateResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.BulkOperations;
@@ -8,12 +7,9 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.util.Pair;
 import org.springframework.util.Assert;
 
 import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class CustomerRepositoryImpl implements CustomerOp {
 
