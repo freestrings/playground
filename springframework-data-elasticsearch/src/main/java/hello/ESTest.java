@@ -23,7 +23,15 @@ import java.util.stream.IntStream;
  * - elasticsearch-5.4.3/config/elasticsearch.yml => cluster.name: customers으로 수정
  * - export=ES_JAVA_OPTS="-Xms512m -Xmx512m";./bin/elasticsearch
  * <p>
- * curl -XPUT 'http://localhost:9200/_all/_settings?preserve_existing=true' -d '{
+ * 세팅조회
+ * http://localhost:9200/_settings
+ * <p>
+ * 수정
+ * curl -XPUT 'http://localhost:9200/customer_name/_settings' -d '{
+ * "index.refresh_interval" : "30s"
+ * }'
+ * <p>
+ * curl -XPUT 'http://localhost:9200/_all/_settings' -d '{
  * "index.refresh_interval" : "1s"
  * }'
  * <p>
@@ -34,7 +42,7 @@ import java.util.stream.IntStream;
  * Insert done3: 20.942
  * Insert done0: 21.778
  * Insert done2: 22.964
- * ➜  springframework-data-elasticsearch git:(master) ✗ curl -XPUT 'http://localhost:9200/customer_name/_settings?preserve_existing=true' -d '{
+ * ➜  springframework-data-elasticsearch git:(master) ✗ curl -XPUT 'http://localhost:9200/customer_name/_settings' -d '{
  * "index.refresh_interval" : "30s"
  * }'
  * {"acknowledged":true}%                                                                                                                                                                                        ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar insert 10000 4 1000 -10000:4:1000:30s-
@@ -66,6 +74,26 @@ import java.util.stream.IntStream;
  * Start Select
  * Select done0: 3.501
  * Select done1: 3.542
+ * <p>
+ * <p>
+ * curl -XPUT 'http://localhost:9200/_all/_settings' -d '{
+ * "index.refresh_interval" : "1s"
+ * }
+ * ➜  springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar update 10000 4 1000 \!
+ * Update done3: 19.137
+ * Update done1: 22.51
+ * Update done2: 24.153
+ * Update done0: 25.496
+ * <p>
+ * curl -XPUT 'http://localhost:9200/_all/_settings' -d '{
+ * "index.refresh_interval" : "30s"
+ * }
+ * ➜ springframework-data-elasticsearch git:(master) ✗ java -jar target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar update 10000 4 1000 \#
+ * <p>
+ * Update done0: 20.416
+ * Update done3: 23.73
+ * Update done1: 26.015
+ * Update done2: 26.554
  */
 @SpringBootApplication
 public class ESTest implements CommandLineRunner {
