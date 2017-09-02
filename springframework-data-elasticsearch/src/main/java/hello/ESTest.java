@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -94,6 +93,40 @@ import java.util.stream.IntStream;
  * Update done3: 23.73
  * Update done1: 26.015
  * Update done2: 26.554
+ * <p>
+ * <p>
+ * >>> 5.5.2
+ * ➜ insert 10000 4 1000 -
+ * <p>
+ * Insert done3: 21.861
+ * Insert done1: 23.565
+ * Insert done2: 24.149
+ * Insert done0: 25.053
+ * <p>
+ * curl -XPUT 'http://localhost:9200/_all/_settings' -d '{
+ * "index.refresh_interval" : "30s"
+ * }'
+ * <p>
+ * ➜ insert 10000 4 1000 \!
+ * <p>
+ * Insert done3: 17.196
+ * Insert done1: 19.805
+ * Insert done2: 20.762
+ * Insert done0: 21.683
+ * <p>
+ * ➜ update 10000 4 1000 \#
+ * <p>
+ * Update done1: 19.423
+ * Update done0: 19.986
+ * Update done3: 22.848
+ * Update done2: 23.084
+ * <p>
+ * ➜ select 10000 4 1000 \#
+ * <p>
+ * Select done1: 3.36
+ * Select done3: 3.485
+ * Select done2: 3.499
+ * Select done0: 3.51
  */
 @SpringBootApplication
 public class ESTest implements CommandLineRunner {
@@ -107,16 +140,16 @@ public class ESTest implements CommandLineRunner {
 
     class _Insert implements Runnable {
 
-        private final int id;
-        private final int work;
+        private final int start;
+        private final int end;
         private final long initialTime;
         private final int countCount;
         private final String token;
         private long time;
 
-        _Insert(int id, int work, int countCount, String token) {
-            this.id = id;
-            this.work = work;
+        _Insert(int start, int end, int countCount, String token) {
+            this.start = start;
+            this.end = end;
             this.countCount = countCount;
             this.token = token;
             this.initialTime = this.time = System.currentTimeMillis();
@@ -124,14 +157,12 @@ public class ESTest implements CommandLineRunner {
 
         @Override
         public void run() {
-            int index = this.id * this.work;
-
             List<Company> companies = IntStream.range(0, 1000)
                     .mapToObj(i -> new Company("Company" + i))
                     .collect(Collectors.toList());
 
             List<IndexQuery> queries = new ArrayList<>();
-            IntStream.range(index, index + this.work).forEach(c -> {
+            IntStream.range(start, this.end).forEach(c -> {
                 Customer customer = new Customer("Customer" + c, "message" + token + c, companies);
                 IndexQuery indexQuery = customer.toIndexQuery();
                 queries.add(indexQuery);
@@ -147,32 +178,32 @@ public class ESTest implements CommandLineRunner {
             if (queries.size() > 0) {
                 repository.saveCustomers(queries);
             }
-            System.out.println("Insert done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
+            System.out.println("Insert done" + this.start + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }
     }
 
     class _Select implements Runnable {
 
-        private final int id;
-        private final int work;
+        private final int start;
+        private final int end;
         private final long initialTime;
+        private final int commitCount;
         private long time;
 
-        _Select(int id, int work) {
-            this.id = id;
-            this.work = work;
+        _Select(int start, int end, int commitCount) {
+            this.start = start;
+            this.end = end;
+            this.commitCount = commitCount;
             this.initialTime = this.time = System.currentTimeMillis();
         }
 
         @Override
         public void run() {
-            int index = this.id * this.work;
-            IntStream.range(index, index + this.work).forEach(c -> {
+            IntStream.range(start, this.end).forEach(c -> {
                 Optional<Customer> byId = repository.findById("Customer" + c);
                 Customer customer = byId.get();
-//                Customer customer = repository.findByName("Customer" + c);
                 Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
-                if (c % 1000 == 0 && c > 0) {
+                if (c % commitCount == 0 && c > 0) {
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
                     this.time = _time;
@@ -182,22 +213,22 @@ public class ESTest implements CommandLineRunner {
                     }
                 }
             });
-            System.out.println("Select done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
+            System.out.println("Select done" + this.start + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }
     }
 
     class _Update implements Runnable {
 
-        private final int id;
-        private final int work;
+        private final int start;
+        private final int end;
         private final long initialTime;
         private final int commitCount;
         private final String token;
         private long time;
 
-        _Update(int id, int work, int commitCount, String token) {
-            this.id = id;
-            this.work = work;
+        _Update(int start, int end, int commitCount, String token) {
+            this.start = start;
+            this.end = end;
             this.commitCount = commitCount;
             this.token = token;
             this.initialTime = this.time = System.currentTimeMillis();
@@ -205,10 +236,9 @@ public class ESTest implements CommandLineRunner {
 
         @Override
         public void run() {
-            int index = this.id * this.work;
             List<String> names = new ArrayList<>();
             List<String> messages = new ArrayList<>();
-            IntStream.range(index, index + this.work).forEach(c -> {
+            IntStream.range(start, end).forEach(c -> {
                 names.add("Customer" + c);
                 messages.add("message" + token + c);
                 if (c % commitCount == 0 && c > 0) {
@@ -224,7 +254,7 @@ public class ESTest implements CommandLineRunner {
             if (names.size() > 0) {
                 repository.updateCompanies(names, messages);
             }
-            System.out.println("Update done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
+            System.out.println("Update done" + this.start + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }
     }
 
@@ -243,7 +273,7 @@ public class ESTest implements CommandLineRunner {
             System.out.println("Start Insert");
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Insert(t, total / worker, commitCount, token));
+                executorService.execute(new _Insert(t * total, t * total + total, commitCount, token));
             }
             executorService.shutdown();
         } else if ("insertOne".equals(command)) {
@@ -257,7 +287,7 @@ public class ESTest implements CommandLineRunner {
             System.out.println("Start Select");
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Select(t, total / worker));
+                executorService.execute(new _Select(t * total, t * total + total, commitCount));
             }
             executorService.shutdown();
         } else if ("selectOne".equals(command)) {
@@ -268,7 +298,7 @@ public class ESTest implements CommandLineRunner {
             System.out.println("Start Update");
             ExecutorService executorService = Executors.newFixedThreadPool(worker);
             for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Update(t, total / worker, commitCount, token));
+                executorService.execute(new _Update(t * total, t * total + total, commitCount, token));
             }
             executorService.shutdown();
         } else if ("updateOne".equals(command)) {
@@ -278,7 +308,9 @@ public class ESTest implements CommandLineRunner {
             Assert.isTrue(result.equals(id), "Fail to check update result");
         } else if ("delete".equals(command)) {
             repository.deleteAll();
+        } else if ("update-single".equals(command)) {
+            System.out.println("Start Update Single: " + worker * total + "~" + (worker * total + total));
+            new _Update(worker * total, worker * total + total, commitCount, token).run();
         }
-
     }
 }

@@ -52,7 +52,7 @@ public class CustomerRepositoryImpl implements CustomerOp {
             updateRequest.script(new Script(
                     ScriptType.INLINE,
                     Script.DEFAULT_SCRIPT_LANG,
-                    "ctx._source.companies[10].companyName=params.companyName",
+                    "ctx._source.companies[0].companyName=params.companyName",
                     Collections.emptyMap(),
                     params));
 

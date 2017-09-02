@@ -6,9 +6,7 @@
         </layout>
     </appender>
 
-    <!--<logger name="org.elasticsearch.client" level="TRACE" additivity="true"/>-->
-
-    <root level="TRACE">
+    <root level="ERROR">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>
