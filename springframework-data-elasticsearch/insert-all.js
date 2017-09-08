@@ -5,16 +5,16 @@ var worker = 4;
 var amount = total / worker;
 for(var i = 0 ; i < worker; i++) {
     (function(index) {
-        console.log("update", amount, index, 1000, '#');
+        console.log("insert", amount, index, 1000, '-');
         var time = Date.now();
         const update = spawn('java', [
             '-jar',
             'target/springframework-data-elasticsearch-1.0-SNAPSHOT.jar',
-            'update',
+            'insert',
             amount,
-            index,
+            i,
             '1000',
-            '#'
+            '-'
         ]);
 
         update.stdout.on('data', (data) => {

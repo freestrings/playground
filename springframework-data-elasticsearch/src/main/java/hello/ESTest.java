@@ -1,12 +1,19 @@
 package hello;
 
+import org.elasticsearch.client.transport.TransportClient;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.elasticsearch.core.query.IndexQuery;
 import org.springframework.util.Assert;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -271,11 +278,7 @@ public class ESTest implements CommandLineRunner {
         String token = args[4];
         if ("insert".equals(command)) {
             System.out.println("Start Insert");
-            ExecutorService executorService = Executors.newFixedThreadPool(worker);
-            for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Insert(t * total, t * total + total, commitCount, token));
-            }
-            executorService.shutdown();
+            new _Insert(worker * total, worker * total + total, commitCount, token).run();
         } else if ("insertOne".equals(command)) {
             System.out.println("Start");
             List<Company> companies = IntStream.range(0, 1000)
@@ -285,22 +288,14 @@ public class ESTest implements CommandLineRunner {
             repository.save(customer0);
         } else if ("select".equals(command)) {
             System.out.println("Start Select");
-            ExecutorService executorService = Executors.newFixedThreadPool(worker);
-            for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Select(t * total, t * total + total, commitCount));
-            }
-            executorService.shutdown();
+            new _Select(worker * total, worker * total + total, commitCount).run();
         } else if ("selectOne".equals(command)) {
             System.out.println("Start Select One: " + total);
             Customer customer = repository.findByName("Customer" + total);
             Assert.isTrue(customer.getName().equals("Customer" + total), "Not matched");
         } else if ("update".equals(command)) {
             System.out.println("Start Update");
-            ExecutorService executorService = Executors.newFixedThreadPool(worker);
-            for (int t = 0; t < worker; t++) {
-                executorService.execute(new _Update(t * total, t * total + total, commitCount, token));
-            }
-            executorService.shutdown();
+            new _Update(worker * total, worker * total + total, commitCount, token).run();
         } else if ("updateOne".equals(command)) {
             System.out.println("Start Update One");
             String id = "Customer" + total;
@@ -308,9 +303,6 @@ public class ESTest implements CommandLineRunner {
             Assert.isTrue(result.equals(id), "Fail to check update result");
         } else if ("delete".equals(command)) {
             repository.deleteAll();
-        } else if ("update-single".equals(command)) {
-            System.out.println("Start Update Single: " + worker * total + "~" + (worker * total + total));
-            new _Update(worker * total, worker * total + total, commitCount, token).run();
         }
     }
 }
