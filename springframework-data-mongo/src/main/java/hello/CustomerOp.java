@@ -6,7 +6,7 @@ public interface CustomerOp {
 
     long updateCompany(String name, int index, String companyName);
 
-    void findUsingName(String name);
+    Customer findUsingName(String name);
 
     int saveCustomers(List<Customer> customers);
 

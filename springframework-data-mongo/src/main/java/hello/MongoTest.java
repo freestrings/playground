@@ -1,9 +1,11 @@
 package hello;
 
+import com.mongodb.MongoClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.util.Assert;
 
 import java.util.ArrayList;
@@ -63,12 +65,59 @@ import java.util.stream.IntStream;
  * Select done3: 6.738
  * Select done0: 6.759
  * Select done1: 6.777
+ * <p>
+ * -----------------------------------------------------------
+ * using mongo api directly
+ * <p>
+ * insert 10000 4 1000 -10000:4:100-
+ * Insert done3: 10.553
+ * Insert done1: 10.725
+ * Insert done0: 10.783
+ * Insert done2: 10.913
+ * <p>
+ * select 10000 4 1000 0
+ * Select done2: 3.162
+ * Select done1: 3.263
+ * Select done3: 3.278
+ * Select done0: 3.333
+ * <p>
+ * select 10000 4 1000 0
+ * Select done3: 2.787
+ * Select done1: 2.936
+ * Select done2: 2.943
+ * Select done0: 2.957
+ * <p>
+ * update 10000 4 1000 -10000:4:1000:update-
+ * Update done0: 2.737
+ * Update done3: 2.82
+ * Update done2: 2.84
+ * Update done1: 2.883
  */
 @SpringBootApplication
 public class MongoTest implements CommandLineRunner {
 
     @Autowired
     private CustomerRepository repository;
+
+    @Bean
+    public MongoClient mongoClient() {
+        return new MongoClient("localhost", 27017);
+    }
+
+    @Autowired
+    MongoClient mongoClient;
+
+//    @PostConstruct
+//    public void init() {
+//        IndexOptions indexOptions = new IndexOptions().unique(true);
+//        MongoDatabase database = mongoClient.getDatabase("testa");
+//        MongoCollection<Document> collection = database.getCollection("customers");
+//        ListIndexesIterable<Document> documents = collection.listIndexes();
+//        for (Document document : documents) {
+//            System.out.println(document);
+//            Object name = document.get("name");
+//        }
+//    }
 
     public static void main(String... args) {
         SpringApplication.run(MongoTest.class, args);
@@ -146,7 +195,8 @@ public class MongoTest implements CommandLineRunner {
         public void run() {
             int index = this.id * this.work;
             IntStream.range(index, index + this.work).forEach(c -> {
-                Customer customer = repository.findByName("Customer" + c);
+//                Customer customer = repository.findByName("Customer" + c);
+                Customer customer = repository.findUsingName("Customer" + c);
                 Assert.isTrue(customer.getName().equals("Customer" + c), "Not match " + c);
                 if (c % commitCount == 0 && c > 0) {
                     long _time = System.currentTimeMillis();
