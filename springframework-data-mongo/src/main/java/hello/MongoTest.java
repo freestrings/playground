@@ -156,7 +156,7 @@ public class MongoTest implements CommandLineRunner {
                 customers.add(customer);
                 if (c % commitCount == 0 && c > 0) {
                     int result = repository.saveCustomers(customers);
-//                    Assert.isTrue(customers.size() == result, "Fail to insert");
+                    Assert.isTrue(customers.size() == result, "Fail to insert");
                     customers.clear();
                     long _time = System.currentTimeMillis();
                     System.out.println(c + ":" + (_time - this.time));
@@ -170,7 +170,7 @@ public class MongoTest implements CommandLineRunner {
 
             if (customers.size() > 0) {
                 int result = repository.saveCustomers(customers);
-//                Assert.isTrue(customers.size() == result, "Fail to insert");
+                Assert.isTrue(customers.size() == result, "Fail to insert");
             }
             System.out.println("Insert done" + this.id + ": " + (System.currentTimeMillis() - this.initialTime) / 1000.0);
         }

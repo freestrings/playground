@@ -2,9 +2,11 @@ package hello;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.result.UpdateResult;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,7 +70,7 @@ public class CustomerRepositoryImpl implements CustomerOp {
 
         MongoDatabase db = mongoClient.getDatabase("testa");
         MongoCollection<Document> customerCollection = db.getCollection("customers");
-        List<Document> cusutomerCollections = customers.stream().map(customer -> {
+        List<InsertOneModel<Document>> cusutomerCollections = customers.stream().map(customer -> {
             Document doc = new Document();
             doc.put("name", customer.getName());
             List<BasicDBObject> companayName = customer.getCompanies()
@@ -77,9 +79,9 @@ public class CustomerRepositoryImpl implements CustomerOp {
                     .collect(Collectors.toList());
 
             doc.put("companies", companayName);
-            return doc;
+            return new InsertOneModel<>(doc);
         }).collect(Collectors.toList());
-        customerCollection.insertMany(cusutomerCollections);
-        return -1;
+        BulkWriteResult bulkWriteResult = customerCollection.bulkWrite(cusutomerCollections);
+        return bulkWriteResult.getInsertedCount();
     }
 }
