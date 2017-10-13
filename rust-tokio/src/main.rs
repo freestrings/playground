@@ -113,7 +113,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
 
-    use bytes::{BytesMut, BufMut};
+    use super::*;
+    use bytes::BufMut;
 
     #[test]
     fn bytes_test() {
