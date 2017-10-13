@@ -104,8 +104,24 @@ impl Service for EchoService {
     }
 }
 
+struct EchoRev;
+
+impl Service for EchoRev {
+    type Request = String;
+    type Response = String;
+    type Error = io::Error;
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+
+    fn call(&self, req: Self::Request) -> Self::Future {
+        let rev: String = req.chars()
+            .rev()
+            .collect();
+        Box::new(future::ok(rev))
+    }
+}
+
 fn main() {
-    if let Err(e) = serve(|| Ok(EchoService)) {
+    if let Err(e) = serve(|| Ok(EchoRev)) {
         println!("Server failed with {}", e);
     }
 }
@@ -114,10 +130,11 @@ fn main() {
 mod tests {
 
     use super::*;
-    use bytes::BufMut;
 
     #[test]
     fn bytes_test() {
+        use bytes::BufMut;
+
         let mut buf = BytesMut::with_capacity(64);
         buf.put(&b"line0\nline1\n"[..]);
         if let Some(i) = buf.iter().position(|&b| b == b'\n') {
@@ -128,5 +145,13 @@ mod tests {
         } else {
             assert!(false);
         }
+    }
+
+    #[test]
+    fn to_socket_test() {
+        use std::net::ToSocketAddrs;
+        
+        let addr = "www.rust-lang.org:443".to_socket_addrs().unwrap().next().unwrap();
+        println!("{:?}", addr);
     }
 }
