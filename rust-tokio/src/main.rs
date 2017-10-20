@@ -13,6 +13,8 @@ use tokio_io::AsyncRead;
 use tokio_io::codec::{Encoder, Decoder};
 use tokio_service::{Service, NewService};
 
+mod future_test;
+
 pub struct LineCodec;
 
 impl Decoder for LineCodec {
