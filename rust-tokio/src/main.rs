@@ -14,6 +14,7 @@ use tokio_io::codec::{Encoder, Decoder};
 use tokio_service::{Service, NewService};
 
 mod future_test;
+mod multiplxed_test;
 
 pub struct LineCodec;
 
