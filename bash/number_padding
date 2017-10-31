@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+for i in $(seq -f "%02g" 00 99)
+do
+    echo $i
+    curl http://localhost:8081/$i
+    sleep 1
+done
