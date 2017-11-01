@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+counter=0
+for i in $(curl -s $1/ids)
+do
+    printf "%-10s [$(curl -s $1/id/$i)]\n" $i
+
+    (( counter += 1 ))
+    if [ "$(expr $counter % 100)" -eq 0 ]
+    then
+        sleep 1
+    fi
+done
