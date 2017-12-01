@@ -1,0 +1,4 @@
+[source,options="nowrap"]
+----
+{"high":21.2,"low":14.8}
+----

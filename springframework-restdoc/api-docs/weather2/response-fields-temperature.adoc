@@ -1,0 +1,12 @@
+|===
+|Path|Type|Description
+
+|`high`
+|`Number`
+|최고온도
+
+|`low`
+|`Number`
+|최저온도
+
+|===

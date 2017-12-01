@@ -1,0 +1,12 @@
+|===
+|Path|Type|Description
+
+|`books[].title`
+|`String`
+|제목1
+
+|`books[].author`
+|`String`
+|저자2
+
+|===

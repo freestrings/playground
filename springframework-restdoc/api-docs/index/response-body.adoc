@@ -1,0 +1,16 @@
+[source,options="nowrap"]
+----
+{
+    "books": [
+        {
+            "title": "제목1",
+            "author": "저자1"
+        },
+        {
+            "title": "제목2",
+            "author": "저자2"
+        }
+    ]
+}
+
+----

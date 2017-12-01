@@ -1,0 +1,5 @@
+[source,bash]
+----
+$ http GET 'http://localhost:8080/paging?page=2&perPage=10' \
+    'Accept:application/json'
+----
