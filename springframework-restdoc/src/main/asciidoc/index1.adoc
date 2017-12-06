@@ -1,0 +1,20 @@
+[[index1]]
+== 테스트1
+
+테스트1 ...
+
+[[index1-request-fields]]
+=== 요청 파라메터
+없음
+
+[[index1-request-example]]
+=== 요청 예제
+include::{snippets}/index1/http-request.adoc[]
+
+[[index1-response-fields]]
+=== 응답 구조
+include::{snippets}/index1/response-fields.adoc[]
+
+[[index1-response-examples]]
+=== 응답 예제
+include::{snippets}/index1/http-response.adoc[]

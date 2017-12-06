@@ -1,20 +1,16 @@
 package hello;
 
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.restdocs.JUnitRestDocumentation;
+import org.springframework.restdocs.request.RequestParametersSnippet;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
 
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
@@ -23,26 +19,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@AutoConfigureMockMvc
+@AutoConfigureRestDocs
 public class SpringframeworkRestdocApplicationTests {
 
-    private MockMvc mockMvc;
-
     @Autowired
-    private WebApplicationContext context;
-
-    @Rule
-    public JUnitRestDocumentation restDocumentation = new JUnitRestDocumentation("api-docs");
-
-    @Before
-    public void setUp() {
-        this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
-                .apply(documentationConfiguration(this.restDocumentation))
-                .build();
-    }
+    private MockMvc mockMvc;
 
     @Test
     public void index1() throws Exception {
-        this.mockMvc.perform(get("/").accept(MediaType.APPLICATION_JSON))
+        this.mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andDo(document("index1",
                         responseFields(
@@ -54,7 +40,7 @@ public class SpringframeworkRestdocApplicationTests {
 
     @Test
     public void index2() throws Exception {
-        this.mockMvc.perform(get("/").accept(MediaType.APPLICATION_JSON))
+        this.mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andDo(document("index2", responseFields(
                         fieldWithPath("books").description("책 리스트"))
@@ -66,7 +52,7 @@ public class SpringframeworkRestdocApplicationTests {
 
     @Test
     public void weather1() throws Exception {
-        this.mockMvc.perform(get("/weather").accept(MediaType.APPLICATION_JSON))
+        this.mockMvc.perform(get("/weather"))
                 .andExpect(status().isOk())
                 .andDo(document("weather1", responseBody(
                         beneathPath("weather.temperature").withSubsectionId("temperature")
@@ -75,7 +61,7 @@ public class SpringframeworkRestdocApplicationTests {
 
     @Test
     public void weather2() throws Exception {
-        this.mockMvc.perform(get("/weather").accept(MediaType.APPLICATION_JSON))
+        this.mockMvc.perform(get("/weather"))
                 .andExpect(status().isOk())
                 .andDo(document("weather2",
                         responseBody(
@@ -89,12 +75,43 @@ public class SpringframeworkRestdocApplicationTests {
     }
 
     @Test
-    public void request1() throws Exception {
-        this.mockMvc.perform(get("/paging?page=2&perPage=10").accept(MediaType.APPLICATION_JSON))
+    public void paging() throws Exception {
+        this.mockMvc
+                .perform(
+                        get("/paging")
+                )
                 .andExpect(status().isOk())
-                .andDo(document("parameter-paging", requestParameters(
-                        parameterWithName("page").description("검색 할 페이지"),
-                        parameterWithName("perPage").description("페이지 당 개수")
-                )));
+                .andDo(document("parameter-paging"));
+    }
+
+    private RequestParametersSnippet requestParametersSnippet = requestParameters(
+            parameterWithName("page").description("검색 할 페이지, 옵션, 기본값 1"),
+            parameterWithName("perPage").description("페이지 당 개수, 옵션, 기본값 10")
+    );
+
+    @Test
+    public void paging1() throws Exception {
+
+
+        this.mockMvc
+                .perform(
+                        get("/paging")
+                                .param("page", "1")
+                                .param("perPage", "10")
+                )
+                .andExpect(status().isOk())
+                .andDo(document("parameter-paging1", requestParametersSnippet));
+    }
+
+    @Test
+    public void paging2() throws Exception {
+        this.mockMvc
+                .perform(
+                        get("/paging")
+                                .param("page", "2")
+                                .param("perPage", "10")
+                )
+                .andExpect(status().isOk())
+                .andDo(document("parameter-paging2", requestParametersSnippet));
     }
 }

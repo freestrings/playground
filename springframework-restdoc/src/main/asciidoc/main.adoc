@@ -1,0 +1,5 @@
+= Spring Restdoc 테스트
+:toc:
+
+include::index1.adoc[]
+include::paging.adoc[]

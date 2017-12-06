@@ -2,11 +2,10 @@ package hello;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Random;
 
 @SpringBootApplication
 public class SpringframeworkRestdocApplication {
@@ -51,9 +50,26 @@ class Ctrl {
                 "}\n";
     }
 
-    @GetMapping("/paging")
-    public String paging(@RequestParam Integer page, @RequestParam Integer perPage) {
-        return "[]";
+    @GetMapping(value = "/paging", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    public String paging(@RequestParam(required = false) Integer page, @RequestParam(required = false) Integer perPage) {
+        if (perPage == null) {
+            perPage = 10;
+        }
+
+        if (page == null || page == 1) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("[");
+            for (int i = 0; i < perPage; i++) {
+                sb.append(i);
+                if (i < perPage - 1) {
+                    sb.append(",");
+                }
+            }
+            sb.append("]");
+            return sb.toString();
+        } else {
+            return "[1]";
+        }
     }
 }
 

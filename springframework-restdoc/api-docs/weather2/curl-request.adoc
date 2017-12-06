@@ -1,5 +1,0 @@
-[source,bash]
-----
-$ curl 'http://localhost:8080/weather' -i \
-    -H 'Accept: application/json'
-----

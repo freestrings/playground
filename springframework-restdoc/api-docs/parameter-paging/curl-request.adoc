@@ -1,5 +1,0 @@
-[source,bash]
-----
-$ curl 'http://localhost:8080/paging?page=2&perPage=10' -i \
-    -H 'Accept: application/json'
-----

@@ -1,0 +1,26 @@
+[[paging]]
+== 페이징
+페이징 테스트 ...
+
+[[paging-request-fields]]
+=== 요청 파라메터
+include::{snippets}/parameter-paging1/request-parameters.adoc[]
+
+[[paging-request-example]]
+=== 예제
+
+[[paging-request-examples]]
+==== 요청 기본
+include::{snippets}/parameter-paging/http-request.adoc[]
+
+[[paging-response-examples]]
+==== 응답 기본 예제
+include::{snippets}/parameter-paging/response-body.adoc[]
+
+[[paging1-request-examples]]
+==== 요청 1 페이지
+include::{snippets}/parameter-paging1/http-request.adoc[]
+
+[[paging1-response-examples]]
+==== 응답 요청 1 페이지
+include::{snippets}/parameter-paging1/response-body.adoc[]
