@@ -66,8 +66,11 @@
                             <goal>process-asciidoc</goal>
                         </goals>
                         <configuration>
-                            <backend>html</backend>
-                            <doctype>book</doctype>
+                            <backend>pdf</backend>
+                            <attributes>
+                                <pdf-style>themes/KaiGenGothicKR-theme.yml</pdf-style>
+                                <pdf-fontsdir>fonts</pdf-fontsdir>
+                            </attributes>
                         </configuration>
                     </execution>
                 </executions>
@@ -77,8 +80,14 @@
                         <artifactId>spring-restdocs-asciidoctor</artifactId>
                         <version>2.0.0.BUILD-SNAPSHOT</version>
                     </dependency>
+                    <dependency>
+                        <groupId>org.asciidoctor</groupId>
+                        <artifactId>asciidoctorj-pdf</artifactId>
+                        <version>1.5.0-alpha.16</version>
+                    </dependency>
                 </dependencies>
             </plugin>
+            <!--
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>2.7</version>
@@ -95,11 +104,75 @@
                             </outputDirectory>
                             <resources>
                                 <resource>
+                                    <includes>
+                                        <include>**/*.pdf</include>
+                                    </includes>
                                     <directory>
                                         ${project.build.directory}/generated-docs
                                     </directory>
                                 </resource>
                             </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            -->
+            <plugin>
+                <groupId>org.bsc.maven</groupId>
+                <artifactId>confluence-reporting-maven-plugin</artifactId>
+                <version>5.1</version>
+                <configuration>
+                    <endPoint>http://confluence.wemakeprice.com/rest/api</endPoint>
+                    <spaceKey>~freestrings</spaceKey>
+                    <parentPageTitle>테스트</parentPageTitle>
+                    <title>API-${project.version}</title>
+                    <serverId>my-confluence-server</serverId>
+                    <templateWiki>${project.basedir}/src/main/asciidoc/template.confluence</templateWiki>
+                    <properties>
+                        <api>file://${project.build.directory}/generated-docs/main.pdf</api>
+                    </properties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <id>doc-uploader-init</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>npm</executable>
+                            <arguments>
+                                <argument>install</argument>
+                                <argument>${project.basedir}/scripts</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>doc-uploader</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>node</executable>
+                            <arguments>
+                                <argument>scripts/doc-uploader.js</argument>
+                                <argument>--file</argument>
+                                <argument>${project.build.directory}/generated-docs/main.pdf</argument>
+                                <argument>--user</argument>
+                                <argument>freestrings</argument>
+                                <argument>--password</argument>
+                                <argument>${env.PASSWORD}</argument>
+                                <argument>--space</argument>
+                                <argument>~freestrings</argument>
+                                <argument>--id</argument>
+                                <argument>11829442</argument>
+                            </arguments>
                         </configuration>
                     </execution>
                 </executions>
