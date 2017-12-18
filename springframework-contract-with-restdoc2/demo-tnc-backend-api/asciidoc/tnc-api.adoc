@@ -1,0 +1,5 @@
+= TNC API
+:toc:
+
+include::get-product.adoc[]
+include::get-products.adoc[]

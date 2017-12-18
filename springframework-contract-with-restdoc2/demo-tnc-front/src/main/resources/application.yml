@@ -1,0 +1,20 @@
+spring.profiles: local
+host:
+  product: http://localhost:8080
+---
+spring.profiles: test
+host:
+  product: http://localhost:8090
+  order: http://localhost:8091
+
+zuul.routes:
+  product:
+      path: /product-api/**
+      sensitiveHeaders:
+      url: http://localhost:8090
+      stripPrefix: true
+  order:
+        path: /order-api/**
+        sensitiveHeaders:
+        url: http://localhost:8091
+        stripPrefix: true

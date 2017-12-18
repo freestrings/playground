@@ -117,22 +117,22 @@
                 </executions>
             </plugin>
             -->
-            <plugin>
-                <groupId>org.bsc.maven</groupId>
-                <artifactId>confluence-reporting-maven-plugin</artifactId>
-                <version>5.1</version>
-                <configuration>
-                    <endPoint>http://confluence.wemakeprice.com/rest/api</endPoint>
-                    <spaceKey>~freestrings</spaceKey>
-                    <parentPageTitle>테스트</parentPageTitle>
-                    <title>API-${project.version}</title>
-                    <serverId>my-confluence-server</serverId>
-                    <templateWiki>${project.basedir}/src/main/asciidoc/template.confluence</templateWiki>
-                    <properties>
-                        <api>file://${project.build.directory}/generated-docs/main.pdf</api>
-                    </properties>
-                </configuration>
-            </plugin>
+            <!--<plugin>-->
+                <!--<groupId>org.bsc.maven</groupId>-->
+                <!--<artifactId>confluence-reporting-maven-plugin</artifactId>-->
+                <!--<version>5.1</version>-->
+                <!--<configuration>-->
+                    <!--<endPoint>http://confluence.wemakeprice.com/rest/api</endPoint>-->
+                    <!--<spaceKey>~freestrings</spaceKey>-->
+                    <!--<parentPageTitle>테스트</parentPageTitle>-->
+                    <!--<title>API-${project.version}</title>-->
+                    <!--<serverId>my-confluence-server</serverId>-->
+                    <!--<templateWiki>${project.basedir}/src/main/asciidoc/template.confluence</templateWiki>-->
+                    <!--<properties>-->
+                        <!--<api>file://${project.build.directory}/generated-docs/main.pdf</api>-->
+                    <!--</properties>-->
+                <!--</configuration>-->
+            <!--</plugin>-->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>

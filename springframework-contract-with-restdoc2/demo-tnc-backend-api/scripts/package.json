@@ -1,0 +1,10 @@
+{
+  "name": "doc-uploader",
+  "version": "0.0.1",
+  "dependencies": {
+    "confluence-api": "^1.1.0",
+    "superagent": "^3.8.2",
+    "command-line-args": "^4.0.7"
+  },
+  "description": "컨플런스 업로더"
+}

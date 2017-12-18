@@ -1,0 +1,21 @@
+{{> header}}
+<body>
+Id: {{product.id}}
+Name: {{product.name}}
+Images:
+<ul>{{#product.images}}
+    <li>{{.}}</li>{{/product.images}}
+</ul>
+<script>
+    //
+    // admin 서비스라면 Http 부하를 고려 할 필요가 없기 때문에 아래처럼 하면 쉽다.
+    //
+    $.when(
+        $.get('/product-api/product/10000'),
+        $.get('/order-api/order/basket/10000')
+    ).done(function(product, basket) {
+        console.log(producdt, basket);
+    });
+</script>
+</body>
+{{> footer}}

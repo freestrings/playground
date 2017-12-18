@@ -1,0 +1,17 @@
+[[get-products]]
+== 상품 리스트
+
+[[products-request-request]]
+=== 요청
+include::{snippets}/get-products/http-request.adoc[]
+
+=== 요청 파라메터
+include::{snippets}/get-products/request-parameters.adoc[]
+
+[[products-response-field]]
+=== 응답필드
+include::{snippets}/get-products/response-fields.adoc[]
+
+[[products-response-examples]]
+=== 응답 예제
+include::{snippets}/get-products/response-body.adoc[]

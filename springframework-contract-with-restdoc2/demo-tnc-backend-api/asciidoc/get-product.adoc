@@ -1,0 +1,15 @@
+[[get-product]]
+== 상품 상세
+상품 상세 정보
+
+[[product-request-request]]
+=== 요청
+include::{snippets}/get-product/http-request.adoc[]
+
+[[product-response-field]]
+=== 응답필드
+include::{snippets}/get-product/response-fields.adoc[]
+
+[[product-response-examples]]
+=== 응답 예제
+include::{snippets}/get-product/response-body.adoc[]
