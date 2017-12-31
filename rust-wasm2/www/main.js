@@ -4,12 +4,13 @@ async function main() {
     return fetchAndInstantiate('testa.wasm', {
         env: {
             hello_as_ptr(ptr, len) {
-                console.log('hello_as_ptr - getStr', getStr(Module, ptr * 8, len * 8), len);
-                console.log('hello_as_ptr - copyCStr', copyCStr(Module, ptr / 8), len); // <- 요건 한글이 깨짐
+                console.log('hello_as_ptr - getStr', getStr(Module, ptr, len), len);
+                // console.log('hello_as_ptr - copyCStr', copyCStr(Module, ptr), len); // <- 요건 dealloc_str에서 에러
+                console.log('hello_as_ptr - copyCStr', copyCStr(Module, ptr / 8), len); // <- 요건 한글 있으면 깨짐
             },
 
             hello_into_raw(ptr, len) {
-                console.log('hello_into_raw - getStr', getStr(Module, ptr * 8, len * 8), len);
+                console.log('hello_into_raw - getStr', getStr(Module, ptr, len), len);
                 console.log('hello_into_raw - copyCStr', copyCStr(Module, ptr), len);
             }
         }
@@ -78,7 +79,7 @@ function getStr(module, ptr, len) {
         }
     }
 
-    const buffer_as_u8 = new Uint8Array(getData(ptr / 8, len / 8));
+    const buffer_as_u8 = new Uint8Array(getData(ptr, len));
     const utf8Decoder = new TextDecoder("UTF-8");
     const buffer_as_utf8 = utf8Decoder.decode(buffer_as_u8);
     return buffer_as_utf8;
