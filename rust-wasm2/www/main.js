@@ -4,15 +4,13 @@ async function main() {
     return fetchAndInstantiate('testa.wasm', {
         env: {
             hello_as_ptr(ptr, len) {
-                // let msg = getStr(Module, ptr * 8, len * 8);
-                let msg = copyCStr(Module, ptr / 8);
-                console.log('hello_as_ptr', msg, len);
+                console.log('hello_as_ptr - getStr', getStr(Module, ptr * 8, len * 8), len);
+                console.log('hello_as_ptr - copyCStr', copyCStr(Module, ptr / 8), len); // <- 요건 한글이 깨짐
             },
 
             hello_into_raw(ptr, len) {
-                // let msg = getStr(Module, ptr * 8, len * 8);
-                let msg = copyCStr(Module, ptr);
-                console.log('hello_into_raw', msg, len);
+                console.log('hello_into_raw - getStr', getStr(Module, ptr * 8, len * 8), len);
+                console.log('hello_into_raw - copyCStr', copyCStr(Module, ptr), len);
             }
         }
     }).then(module => {
@@ -28,11 +26,11 @@ async function main() {
         const an = module.append_num(6);
         console.log('append_num', copyCStr(Module, an));
 
-        const as = module.append_str(newString(Module, 'frees'));
+        const as = module.append_str(newString(Module, 'f한rees'));
         console.log('append_str', copyCStr(Module, as));
 
-        module.callback_str_as_ptr(7, newString(Module, 'freest'));
-        module.callback_str_into_raw(8, newString(Module, 'freest'));
+        module.callback_str_as_ptr(7, newString(Module, 'f한reest'));
+        module.callback_str_into_raw(8, newString(Module, 'f한reest'));
     });
 }
 

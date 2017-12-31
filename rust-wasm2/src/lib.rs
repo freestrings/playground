@@ -11,7 +11,7 @@ extern "C" {
 pub extern "C" fn callback_str_as_ptr(num: i32, msg: *mut c_char) {
     unsafe {
         let s = CString::from_raw(msg).into_string().unwrap();
-        let s = format!("hello: {}, {}", num, s);
+        let s = format!("h한글ello: {}, {}", num, s);
         hello_as_ptr(s.as_ptr(), s.len() as u32);
     }
 }
@@ -20,7 +20,7 @@ pub extern "C" fn callback_str_as_ptr(num: i32, msg: *mut c_char) {
 pub extern "C" fn callback_str_into_raw(num: i32, msg: *mut c_char) {
     unsafe {
         let s = CString::from_raw(msg).into_string().unwrap();
-        let s = format!("hello: {}, {}", num, s);
+        let s = format!("h한글ello: {}, {}", num, s);
         let len = s.len();
         let s = CString::new(s).unwrap();
         hello_into_raw(s.into_raw(), len as u32);
@@ -36,7 +36,7 @@ pub extern "C" fn multiply(val1: i32, val2: i32) -> i32 {
 pub extern "C" fn append_str(string: *mut c_char) -> *mut c_char {
     unsafe {
         let rust_string = CString::from_raw(string).into_string().unwrap();
-        let s = format!("hello: {}", rust_string);
+        let s = format!("h한글ello: {}", rust_string);
         let s = CString::new(s).unwrap();
         s.into_raw()
     }
@@ -44,7 +44,7 @@ pub extern "C" fn append_str(string: *mut c_char) -> *mut c_char {
 
 #[no_mangle]
 pub fn append_num(n: u32) -> *mut c_char {
-    let s = format!("hello: {}", n);
+    let s = format!("h한글ello: {}", n);
     let s = CString::new(s).unwrap();
     s.into_raw()
 }
