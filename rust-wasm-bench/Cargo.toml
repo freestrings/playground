@@ -1,0 +1,12 @@
+[package]
+name = "test-rust-wasm"
+version = "0.1.0"
+authors = ["freestrings <freestrings@gmail.com>"]
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+regex = "0.2"
+lazy_static = "1.0.0"
