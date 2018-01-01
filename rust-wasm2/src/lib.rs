@@ -1,5 +1,5 @@
 use std::mem;
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::os::raw::{c_char, c_void};
 
 extern "C" {
@@ -19,7 +19,8 @@ pub extern "C" fn callback_str_as_ptr(num: i32, msg: *mut c_char) {
 #[no_mangle]
 pub extern "C" fn callback_str_into_raw(num: i32, msg: *mut c_char) {
     unsafe {
-        let s = CString::from_raw(msg).into_string().unwrap();
+        // let s = CString::from_raw(msg).into_string().unwrap();
+        let s = CStr::from_ptr(msg).to_str().unwrap();
         let s = format!("h한글ello: {}, {}", num, s);
         let len = s.len();
         let s = CString::new(s).unwrap();
