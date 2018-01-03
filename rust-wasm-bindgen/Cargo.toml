@@ -1,0 +1,10 @@
+[package]
+name = "wasm-bindgen-test"
+version = "0.1.0"
+authors = ["freestrings <freestrings@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = { git = 'https://github.com/alexcrichton/wasm-bindgen' }

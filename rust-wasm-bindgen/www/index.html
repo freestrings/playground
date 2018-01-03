@@ -1,0 +1,43 @@
+<html>
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+</head>
+<body>
+<script type='module'>
+    import { instantiate } from "./test.js";
+
+    fetch("test.wasm")
+        .then(resp => resp.arrayBuffer())
+        .then(wasm => instantiate(wasm))
+        .then(mod => {
+            let num = 100000000;
+            var t = Date.now();
+            console.log('sum', mod.sum(num), Date.now()- t);
+            t = Date.now();
+            console.log('sum_all', mod.sum_all(2, num), Date.now()- t);
+            t = Date.now();
+            console.log('js sum', sum(num), Date.now()- t);
+            t = Date.now();
+            console.log('js sum_all', sum_all(2, num), Date.now()- t);
+        });
+
+    function sum(num) {
+        let s = 0;
+        for(let i = 0 ; i < num ; i++) {
+            s+=i;
+        }
+        return s;
+    }
+
+    function sum_all(iter, num) {
+        let s = 0;
+        for(let i = 0 ; i < iter ; i++) {
+            for(let j = 0; j < num; j++) {
+                s += j;
+            }
+        }
+        return s;
+    }
+</script>
+</body>
+</html>
