@@ -53,28 +53,55 @@
         return buffer_as_utf8
     }
 
+    function regexToStr(re) {
+        return re.source;
+    }
+
     fetchAndInstantiate('regex.wasm').then(module => {
-        let regStr = newString(module, '[\\-\\[\\]{}()*+?.,\\\\\\\^$|#\\s]');
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a-b"))) === "a\\-b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a-b"))) === "a\\-b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a[b"))) === "a\\[b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a]b"))) === "a\\]b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a{b"))) === "a\\{b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a}b"))) === "a\\}b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a(b"))) === "a\\(b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a)b"))) === "a\\)b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a*b"))) === "a\\*b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a+b"))) === "a\\+b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a?b"))) === "a\\?b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a.b"))) === "a\\.b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a,b"))) === "a\\,b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a\\b"))) === "a\\\\b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a^b"))) === "a\\^b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a$b"))) === "a\\$b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a|b"))) === "a\\|b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a#b"))) === "a\\#b");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a\\sb"))) === "a\\\\sb");
-        console.assert(copyCStr(module, module.escape_as_regstr(regStr, newString(module, "a-[]{}()*+?.,\\^$|#\\s한b"))) === "a\\-\\[\\]\\{\\}\\(\\)\\*\\+\\?\\.\\,\\\\\\^\\$\\|\\#\\\\s한b");
+        let regStrPtr = newString(module, regexToStr(/[\-\[\]{}()*+?.,\\\^$|#\s]/));
+        let regPtr = module.create_regexp(regStrPtr);
+
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a-b"))) === "a\\-b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a-b"))) === "a\\-b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a[b"))) === "a\\[b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a]b"))) === "a\\]b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a{b"))) === "a\\{b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a}b"))) === "a\\}b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a(b"))) === "a\\(b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a)b"))) === "a\\)b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a*b"))) === "a\\*b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a+b"))) === "a\\+b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a?b"))) === "a\\?b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a.b"))) === "a\\.b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a,b"))) === "a\\,b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a\\b"))) === "a\\\\b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a^b"))) === "a\\^b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a$b"))) === "a\\$b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a|b"))) === "a\\|b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a#b"))) === "a\\#b");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a\\sb"))) === "a\\\\sb");
+        console.assert(copyCStr(module, module.escape_as_reg(regPtr, newString(module, "a-[]{}()*+?.,\\^$|#\\s한b"))) === "a\\-\\[\\]\\{\\}\\(\\)\\*\\+\\?\\.\\,\\\\\\^\\$\\|\\#\\\\s한b");
+
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a-b"))) === "a\\-b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a-b"))) === "a\\-b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a[b"))) === "a\\[b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a]b"))) === "a\\]b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a{b"))) === "a\\{b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a}b"))) === "a\\}b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a(b"))) === "a\\(b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a)b"))) === "a\\)b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a*b"))) === "a\\*b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a+b"))) === "a\\+b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a?b"))) === "a\\?b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a.b"))) === "a\\.b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a,b"))) === "a\\,b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a\\b"))) === "a\\\\b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a^b"))) === "a\\^b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a$b"))) === "a\\$b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a|b"))) === "a\\|b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a#b"))) === "a\\#b");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a\\sb"))) === "a\\\\sb");
+        console.assert(copyCStr(module, module.escape_as_regstr(regStrPtr, newString(module, "a-[]{}()*+?.,\\^$|#\\s한b"))) === "a\\-\\[\\]\\{\\}\\(\\)\\*\\+\\?\\.\\,\\\\\\^\\$\\|\\#\\\\s한b");
         console.log('done');
     });
 </script>

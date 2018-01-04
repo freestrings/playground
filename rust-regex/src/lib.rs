@@ -38,6 +38,24 @@ fn __to_ptr(s: String) -> *const c_char {
 }
 
 #[no_mangle]
+pub fn create_regexp(_regstr: *const c_char) -> *const c_void {
+    let regstr = __to_string(_regstr);
+    let _reg = Regex::new(regstr.as_str()).unwrap();
+    let reg: Box<Regex>= Box::new(_reg);
+    let ptr = &*reg as *const Regex as *const c_void;
+    mem::forget(reg);
+    ptr
+}
+
+#[no_mangle]
+pub fn escape_as_reg(_reg: *const c_void, _search_value: *const c_char) -> *const c_char {
+    let reg: &Regex = unsafe { mem::transmute(_reg) };
+    let search_value = __to_string(_search_value);
+    let result = escape(reg, search_value.as_str());
+    __to_ptr(result)
+}
+
+#[no_mangle]
 pub fn escape_as_regstr(_regstr: *const c_char, _search_value: *const c_char) -> *const c_char {
     let regstr = __to_string(_regstr);
     let search_value = __to_string(_search_value);
