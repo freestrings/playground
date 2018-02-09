@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <RollingRandomAccessFile name="RollingRandomAccessFile" fileName="logs/async.log"
+                                 immediateFlush="false"
+                                 append="true"
+                                 ignoreExceptions="false"
+                                 filePattern="logs/$${date:yyyy-MM}/async-%d{MM-dd-yyyy}-%i.log.gz"
+        >
+            <PatternLayout>
+                <Pattern>%d %p %m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="500"/>
+        </RollingRandomAccessFile>
+    </Appenders>
+    <Loggers>
+        <Root level="info" includeLocation="false">
+            <AppenderRef ref="RollingRandomAccessFile" />
+        </Root>
+    </Loggers>
+</Configuration>
