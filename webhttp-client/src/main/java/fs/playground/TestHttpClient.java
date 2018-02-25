@@ -16,7 +16,7 @@ package fs.playground;
  * hc done  3 [0 sec, 962 millisec]
  * <p>
  * <p>
- * => 최대 약 8개 커넥션
+ * => 최대 약 8개 커넥션, 약 300 TIME_WAIT
  * <p>
  * Pooled HttpClient
  * <p>
@@ -30,7 +30,7 @@ package fs.playground;
  * phc done  3 [0 sec, 572 millisec]
  * <p>
  * <p>
- * => 최대 약 200개 커넥션
+ * => 최대 약 200개 커넥션, 380 TIME_WAIT
  * <p>
  * RestTemplate
  * <p>
@@ -44,7 +44,7 @@ package fs.playground;
  * rt done  3 [0 sec, 786 millisec]
  * <p>
  * <p>
- * => 최대 약 200 커넥션
+ * => 최대 약 200 커넥션, 약 2000 TIME_WAIT
  * <p>
  * Pooled RestTemplate
  * <p>
@@ -58,7 +58,7 @@ package fs.playground;
  * prt done  3 [0 sec, 751 millisec]
  * <p>
  * <p>
- * => 최대 약 200개 커넥션
+ * => 최대 약 200개 커넥션,약 380 TIME_WAIT
  * <p>
  * WebClient
  * <p>
@@ -71,14 +71,14 @@ package fs.playground;
  * wc start 3
  * wc done  3 [1 sec, 1116 millisec]
  * <p>
- * => 최대 500개 미만 커넥션
+ * => 최대 500개 미만 커넥션, 약 460 TIME_WAIT
  */
 public class TestHttpClient {
 
     public static final String URL = "http://localhost:8081/test.txt";
 
 
-    public static void main(String... args) {
+    public static void main(String... args) throws InterruptedException {
         TimeWatch watch = new TimeWatch();
 
         Testable testable = null;
@@ -102,6 +102,8 @@ public class TestHttpClient {
         System.out.println("warmup");
         testable.doTest(10, URL);
         System.out.println("warmup done");
+
+        Thread.sleep(1000);
 
         for (int i = 1; i <= 3; i++) {
             System.out.format("%s start %d\n", cmd, i);
