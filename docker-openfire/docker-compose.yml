@@ -1,0 +1,40 @@
+version: '3'
+services:
+  openfire:
+    image: openfire:4.2
+    ports:
+      - 9090
+    volumes:
+      - ./openfire/conf:/opt/openfire/_conf:ro
+      - ./openfire/plugins:/opt/openfire/_plugins:ro
+      - ./openfire/lib:/opt/openfire/_lib:ro
+      - ./openfire/custom-entrypoint.sh:/sbin/custom-entrypoint.sh
+    command: ['/sbin/custom-entrypoint.sh', '/sbin/entrypoint.sh']
+    depends_on:
+      - mysql-wait
+  mysql-wait:
+    build:
+      context: ./mysql-wait
+    volumes:
+      - ./mysql-wait/wait-for-mysql.sh:/wait-for-mysql.sh
+    command: '/wait-for-mysql.sh'
+    depends_on:
+      - mysql
+  mysql:
+    image: mysql
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - ./openfire-mysql/sql:/sql
+      - ./openfire-mysql/schema-only.sh:/docker-entrypoint-initdb.d/schema-only.sh
+      - ./openfire-mysql/mysql-log.cnf:/etc/mysql/conf.d/mysql-log.cnf
+  haproxy:
+    image: rafpe/docker-haproxy-rsyslog
+    ports:
+      - 5000:80
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - openfire

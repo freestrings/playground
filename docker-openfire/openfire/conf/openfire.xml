@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jive> 
+  <adminConsole> 
+    <port>9090</port>  
+    <securePort>9091</securePort> 
+  </adminConsole>  
+  <locale>en</locale>  
+  <stream> 
+    <management> 
+      <active>true</active>  
+      <requestFrequency>5</requestFrequency> 
+    </management> 
+  </stream>  
+  <connectionProvider> 
+    <className>org.jivesoftware.database.DefaultConnectionProvider</className> 
+  </connectionProvider>  
+  <database> 
+    <defaultProvider> 
+      <driver>com.mysql.jdbc.Driver</driver>  
+      <serverURL>jdbc:mysql://mysql:3306/testa?rewriteBatchedStatements=true</serverURL>  
+      <username>user</username>  
+      <password>1111</password>  
+      <testSQL>select 1</testSQL>  
+      <testBeforeUse>false</testBeforeUse>  
+      <testAfterUse>false</testAfterUse>  
+      <minConnections>5</minConnections>  
+      <maxConnections>25</maxConnections>  
+      <connectionTimeout>1.0</connectionTimeout> 
+    </defaultProvider> 
+  </database>  
+  <setup>true</setup> 
+  <clustering>
+    <enabled>true</enabled>
+  </clustering>
+</jive>
