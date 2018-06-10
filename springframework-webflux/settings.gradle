@@ -1,0 +1,5 @@
+rootProject.name = 'springframework-webflux'
+include 'resttemplate'
+include 'load-scripts'
+include 'webflux'
+
