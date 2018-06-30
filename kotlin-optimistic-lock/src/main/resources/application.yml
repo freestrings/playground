@@ -1,0 +1,7 @@
+spring:
+  jpa.hibernate.ddl-auto: create
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/testa
+    username: user
+    password: 1111
