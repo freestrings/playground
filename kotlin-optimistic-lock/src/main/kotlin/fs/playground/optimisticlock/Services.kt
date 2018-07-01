@@ -6,59 +6,67 @@ import org.hibernate.StaleObjectStateException
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.auditing.AuditingHandler
 import org.springframework.orm.ObjectOptimisticLockingFailureException
+import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.stereotype.Component
+import org.springframework.transaction.support.DefaultTransactionDefinition
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
+import java.util.concurrent.CompletableFuture
+
 
 enum class TicketEventType {
     RESERVATION, CANCEL
 }
 
-enum class ReservationType {
+enum class ConsumeType {
     OVER, DONE, FIAL
 }
 
 @Component
 class TicketService(
-        private @Autowired val ticketRepository: TicketRepository,
-        private @Autowired val ticketEventRepository: TicketEventRepository,
-        private @Autowired val auditingHandler: AuditingHandler
+        @Autowired private val ticketRepository: TicketRepository,
+        @Autowired private val ticketEventRepository: TicketEventRepository,
+        @Autowired private val auditingHandler: AuditingHandler,
+        @Autowired private val trasactionManager: JpaTransactionManager
 ) {
 
     private val logger = LogManager.getLogger(TicketService::class.java)
 
     private var mapper: ObjectMapper = ObjectMapper()
 
-    fun findTicket(ticketName: String): Optional<Ticket> = ticketRepository.findById(ticketName)
-
-    fun findTicketAll(): MutableIterable<Ticket> = ticketRepository.findAll()
-
-    fun creatTicket(name: String, maximum: Int) {
-        logger.info("생성: ${name}, ${maximum}")
-        ticketRepository.save(Ticket(name, maximum, LocalDateTime.now()))
+    fun create(name: String, maximum: Int): CompletableFuture<Ticket>? {
+        return CompletableFuture.supplyAsync {
+            logger.info("생성: ${name}, ${maximum}")
+            ticketRepository.save(Ticket(name, maximum, LocalDateTime.now()))
+        }
     }
 
-    fun reservationTicket(ticketName: String, retry: Int): ReservationType {
-        if (retry > 10) {
-            return ReservationType.FIAL
-        }
-        val usedTicketCount = ticketEventRepository.findByTicketName(ticketName).filter {
-            it.eventType == TicketEventType.RESERVATION
-        }.count()
+    fun usedTicketCount(ticketName: String) = ticketEventRepository.findByTicketName(ticketName)
+            .stream()
+            .filter { it.eventType == TicketEventType.RESERVATION }
+            .count()
+
+    fun find(ticketName: String): Ticket {
         val mayBeTicket = ticketRepository.findById(ticketName)
         if (!mayBeTicket.isPresent()) {
-            throw Exception("티켓없음 ${ticketName}")
+            throw Exception("존재하지 않는 티켓: ${ticketName}")
         }
-        val ticket = mayBeTicket.get()
+        return mayBeTicket.get()
+    }
+
+    fun consumAsSync(ticketName: String): ConsumeType {
+        val usedTicketCount = usedTicketCount(ticketName)
+        val ticket = find(ticketName)
         if (ticket.maxium < usedTicketCount) {
-            logger.warn("수량초과: ${usedTicketCount}")
-            return ReservationType.OVER
+            logger.info("수량초과: ${ticketName} - ${usedTicketCount}")
+            return ConsumeType.OVER
         }
-        try {
+        val txDef = DefaultTransactionDefinition()
+        val txStatus = trasactionManager.getTransaction(txDef)
+        return try {
+            ticketRepository.save(ticket)
             ticket.updated = LocalDateTime.now()
             auditingHandler.markModified(ticket)
-            ticketRepository.save(ticket)
             ticketEventRepository.save(TicketEvent(
                     eventType = TicketEventType.RESERVATION,
                     ticketName = ticketName,
@@ -68,20 +76,51 @@ class TicketService(
                     payload = mapper.writeValueAsString(hashMapOf(
                             "name" to ticket.name,
                             "maximum" to ticket.maxium,
-                            "used" to usedTicketCount,
+                            "used" to usedTicketCount + 1,
                             "updated" to ticket.updated.format(DateTimeFormatter.ofPattern("yyyy-MM-dd kk:mm:ss")),
                             "version" to ticket.version
                     ))
             ))
-            return ReservationType.DONE
+            trasactionManager.commit(txStatus)
+            ConsumeType.DONE
         } catch (e: Exception) {
             when (e) {
                 is ObjectOptimisticLockingFailureException, is StaleObjectStateException -> {
-                    logger.info("락걸림")
-                    return reservationTicket(ticketName, retry + 1)
+                    logger.info("락걸림: ${ticketName}")
+                    ConsumeType.FIAL
                 }
-                else -> throw e
+                else -> {
+                    trasactionManager.rollback(txStatus)
+                    throw e
+                }
             }
         }
     }
+
+    fun consumeAsAsync(ticketName: String): CompletableFuture<ConsumeType> {
+        return CompletableFuture.supplyAsync { consumAsSync(ticketName) }.exceptionally { throw it }
+    }
+
+    fun consumWithRetry(ticketName: String): CompletableFuture<ConsumeType> {
+        val result = CompletableFuture<ConsumeType>()
+        consumWithRetry(ticketName, result, 10)
+        return result
+    }
+
+    private fun consumWithRetry(ticketName: String, result: CompletableFuture<ConsumeType>, retry: Int) {
+        logger.info("재시도: ${ticketName} - ${retry}")
+        consumeAsAsync(ticketName).thenApply {
+            when (it) {
+                ConsumeType.FIAL -> {
+                    if (retry > 0) {
+                        consumWithRetry(ticketName, result, retry - 1)
+                    } else {
+                        result.complete(ConsumeType.FIAL)
+                    }
+                }
+                else -> result.complete(it)
+            }
+        }.exceptionally { result.completeExceptionally(it) }
+    }
+
 }
