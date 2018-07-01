@@ -25,7 +25,7 @@ class JpaConfiguration(
         val hibernateJpa = HibernateJpaVendorAdapter()
         val emf = LocalContainerEntityManagerFactoryBean()
         emf.dataSource = dataSource
-        emf.setPackagesToScan(JpaConfiguration::class.java!!.getPackage().getName())
+        emf.setPackagesToScan(JpaConfiguration::class.java.getPackage().getName())
         emf.jpaVendorAdapter = hibernateJpa
         return emf
     }

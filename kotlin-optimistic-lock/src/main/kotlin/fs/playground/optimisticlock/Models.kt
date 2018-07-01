@@ -7,7 +7,7 @@ import javax.persistence.*
 @Table(name = "ticket")
 data class Ticket(
         @Id val name: String,
-        val maxium: Int,
+        val max: Int,
         var updated: LocalDateTime,
         @Version val version: Int = 0
 )

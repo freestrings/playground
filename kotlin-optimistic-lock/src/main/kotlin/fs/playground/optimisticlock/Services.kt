@@ -19,7 +19,7 @@ enum class TicketEventType {
 }
 
 enum class ConsumeType {
-    OVER, DONE, FIAL
+    OVER, DONE, RETRY
 }
 
 @Component
@@ -54,19 +54,19 @@ class TicketService(
         return mayBeTicket.get()
     }
 
-    fun consumAsSync(ticketName: String): ConsumeType {
+    fun consumAsSync(ticketName: String, uuid: String): ConsumeType {
         val usedTicketCount = usedTicketCount(ticketName)
         val ticket = find(ticketName)
-        if (ticket.maxium < usedTicketCount) {
-            logger.info("수량초과: ${ticketName} - ${usedTicketCount}")
+        if (ticket.max< usedTicketCount) {
+            logger.info("수량초과: ${uuid} - ${usedTicketCount}")
             return ConsumeType.OVER
         }
         val txDef = DefaultTransactionDefinition()
         val txStatus = trasactionManager.getTransaction(txDef)
         return try {
-            ticketRepository.save(ticket)
             ticket.updated = LocalDateTime.now()
             auditingHandler.markModified(ticket)
+            ticketRepository.save(ticket)
             ticketEventRepository.save(TicketEvent(
                     eventType = TicketEventType.RESERVATION,
                     ticketName = ticketName,
@@ -75,7 +75,7 @@ class TicketService(
                     //
                     payload = mapper.writeValueAsString(hashMapOf(
                             "name" to ticket.name,
-                            "maximum" to ticket.maxium,
+                            "maximum" to ticket.max,
                             "used" to usedTicketCount + 1,
                             "updated" to ticket.updated.format(DateTimeFormatter.ofPattern("yyyy-MM-dd kk:mm:ss")),
                             "version" to ticket.version
@@ -84,43 +84,47 @@ class TicketService(
             trasactionManager.commit(txStatus)
             ConsumeType.DONE
         } catch (e: Exception) {
+            if (!txStatus.isCompleted) {
+                trasactionManager.rollback(txStatus)
+            }
             when (e) {
                 is ObjectOptimisticLockingFailureException, is StaleObjectStateException -> {
-                    logger.info("락걸림: ${ticketName}")
-                    ConsumeType.FIAL
+                    logger.info("락걸림: ${uuid}")
+                    ConsumeType.RETRY
                 }
                 else -> {
-                    trasactionManager.rollback(txStatus)
                     throw e
                 }
             }
         }
     }
 
-    fun consumeAsAsync(ticketName: String): CompletableFuture<ConsumeType> {
-        return CompletableFuture.supplyAsync { consumAsSync(ticketName) }.exceptionally { throw it }
-    }
-
-    fun consumWithRetry(ticketName: String): CompletableFuture<ConsumeType> {
+    fun consumWithRetry(ticketName: String, uuid: String): CompletableFuture<ConsumeType> {
         val result = CompletableFuture<ConsumeType>()
-        consumWithRetry(ticketName, result, 10)
+        consumWithRetry(ticketName, result, 10, uuid)
         return result
     }
 
-    private fun consumWithRetry(ticketName: String, result: CompletableFuture<ConsumeType>, retry: Int) {
-        logger.info("재시도: ${ticketName} - ${retry}")
-        consumeAsAsync(ticketName).thenApply {
+    private fun consumWithRetry(ticketName: String, result: CompletableFuture<ConsumeType>, retry: Int, uuid: String) {
+        logger.info("#UUID-1: ${uuid} - ${retry}")
+        CompletableFuture.supplyAsync { consumAsSync(ticketName, uuid) }.thenApply {
+            logger.info("#UUID-2: ${uuid} - ${it}")
             when (it) {
-                ConsumeType.FIAL -> {
+                ConsumeType.RETRY -> {
                     if (retry > 0) {
-                        consumWithRetry(ticketName, result, retry - 1)
+                        consumWithRetry(ticketName, result, retry - 1, uuid)
                     } else {
-                        result.complete(ConsumeType.FIAL)
+                        result.complete(ConsumeType.RETRY)
                     }
                 }
-                else -> result.complete(it)
+                else -> {
+                    result.complete(it)
+                }
             }
-        }.exceptionally { result.completeExceptionally(it) }
+        }.exceptionally {
+            logger.info("#UUID-3: ${uuid} - ${it.message}")
+            result.completeExceptionally(it)
+        }
     }
 
 }
