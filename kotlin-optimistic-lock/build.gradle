@@ -70,7 +70,6 @@ task buildDocker(type: Docker, dependsOn: build) {
     doFirst {
         copy {
             from jar
-            from file('docker/wait-until-run.sh')
             into stageDir
         }
     }

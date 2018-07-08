@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.logging.log4j.LogManager
 import org.hibernate.StaleObjectStateException
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.data.auditing.AuditingHandler
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.stereotype.Component
@@ -12,7 +11,6 @@ import org.springframework.transaction.support.DefaultTransactionDefinition
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.CompletableFuture
-
 
 enum class TicketEventType {
     RESERVATION, CANCEL
@@ -26,7 +24,7 @@ enum class ConsumeType {
 class TicketService(
         @Autowired private val ticketRepository: TicketRepository,
         @Autowired private val ticketEventRepository: TicketEventRepository,
-        @Autowired private val auditingHandler: AuditingHandler,
+        @Autowired private val snapshotRepository: SnapshotRepository,
         @Autowired private val trasactionManager: JpaTransactionManager
 ) {
 
@@ -41,10 +39,28 @@ class TicketService(
         }
     }
 
-    fun usedTicketCount(ticketName: String) = ticketEventRepository.findByTicketName(ticketName)
-            .stream()
-            .filter { it.eventType == TicketEventType.RESERVATION }
-            .count()
+    fun createReservationSnapshot(ticketName: String, events: List<TicketEvent>, oldCount: Int) {
+        if (events.size >= 10) {
+            val event = events.last()
+            logger.info("스냅샷 생성: ${event.id}")
+            val totalCount = events.size + oldCount
+            snapshotRepository.save(Snapshot(
+                    SnapshotId(eventId = event.id, ticketName = ticketName),
+                    count = totalCount))
+        }
+    }
+
+    fun usedTicketCount(ticketName: String): Int {
+        return snapshotRepository.findFirst1ByIdTicketNameOrderByIdEventIdDesc(ticketName)?.let {
+            val events = ticketEventRepository.findByIdGreaterThanAndTicketNameWithEventType(it.id.eventId, it.id.ticketName, TicketEventType.RESERVATION)
+            createReservationSnapshot(ticketName, events, it.count)
+            events.size + it.count
+        } ?: run {
+            val events = ticketEventRepository.findByTicketNameWithEventType(ticketName, TicketEventType.RESERVATION)
+            createReservationSnapshot(ticketName, events, 0)
+            events.size
+        }
+    }
 
     fun find(ticketName: String): Ticket {
         val mayBeTicket = ticketRepository.findById(ticketName)
@@ -57,15 +73,14 @@ class TicketService(
     fun consumAsSync(ticketName: String, uuid: String): ConsumeType {
         val usedTicketCount = usedTicketCount(ticketName)
         val ticket = find(ticketName)
-        if (ticket.max< usedTicketCount) {
+        if (ticket.max < usedTicketCount) {
             logger.info("수량초과: ${uuid} - ${usedTicketCount}")
             return ConsumeType.OVER
         }
         val txDef = DefaultTransactionDefinition()
         val txStatus = trasactionManager.getTransaction(txDef)
         return try {
-            ticket.updated = LocalDateTime.now()
-            auditingHandler.markModified(ticket)
+            ticket.updated = ticket.updated.plusNanos(1)
             ticketRepository.save(ticket)
             ticketEventRepository.save(TicketEvent(
                     eventType = TicketEventType.RESERVATION,
