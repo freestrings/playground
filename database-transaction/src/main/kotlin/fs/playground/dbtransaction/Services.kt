@@ -26,20 +26,6 @@ class TestaService(
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
-    fun testWithTransaction(id: String) {
-//        val txDef = DefaultTransactionDefinition()
-//        val txStatus = trasactionManager.getTransaction(txDef)
-        val testTable: TestTable? = repository.getOne(id)
-        testTable?.let {
-            if (testTable.count < testTable.countLimit) {
-                testTable.count++
-                println("${Thread.currentThread()} - ${testTable.count}")
-                repository.save(testTable)
-            } else {
-                throw Exception("넘었음")
-            }
-        }
-//        trasactionManager.commit(txStatus)
-    }
+    fun testWithTransaction(id: String) = repository.increase(id)
 
 }
