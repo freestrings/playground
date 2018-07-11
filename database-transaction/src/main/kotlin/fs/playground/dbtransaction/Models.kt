@@ -10,5 +10,5 @@ import javax.persistence.Table
 data class TestTable(
         @Id val id: String,
         var count: Int,
-        @Column(name = "column_limit") val countLimit: Int
+        @Column(name = "count_limit") val countLimit: Int
 )

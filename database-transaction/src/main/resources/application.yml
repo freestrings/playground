@@ -6,6 +6,6 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
 logging:
   level:
-    org.hibernate.SQL: debug
+    org.hibernate.SQL: trace
     org.hibernate.type.descriptor.sql: trace
     org.springframework.transaction: trace

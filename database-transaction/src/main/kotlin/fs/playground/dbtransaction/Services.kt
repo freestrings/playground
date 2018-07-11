@@ -56,4 +56,6 @@ class TestaService(
     @javax.transaction.Transactional
     fun testWithTransaction(id: String) = repository.increase(id)
 
+    fun testWithTransaction2(id: String) = repository.increase2(id)
+
 }

@@ -19,8 +19,8 @@ class DbTransactionApplicationTests {
     lateinit var repository: TestTableRepository
 
     private fun exec(id: String, runnable: (String) -> Unit) {
-        var countLimit = 1000
-        val rangeTo = countLimit + 10
+        var countLimit = 10
+        val rangeTo = countLimit + 1
         val countDownLatch = CountDownLatch(rangeTo)
         var executor = Executors.newFixedThreadPool(5)
         repository.save(TestTable(id, 0, countLimit))
@@ -53,6 +53,13 @@ class DbTransactionApplicationTests {
     fun testWithTransaction() {
         exec("testa") {
             testaService.testWithTransaction(it)
+        }
+    }
+
+    @Test
+    fun testWithTransaction2() {
+        exec("testc") {
+            testaService.testWithTransaction2(it)
         }
     }
 
