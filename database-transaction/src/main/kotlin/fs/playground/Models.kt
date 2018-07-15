@@ -1,4 +1,4 @@
-package fs.playground.dbtransaction
+package fs.playground
 
 import javax.persistence.Column
 import javax.persistence.Entity

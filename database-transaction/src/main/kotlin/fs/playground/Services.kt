@@ -1,4 +1,4 @@
-package fs.playground.dbtransaction
+package fs.playground
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Component
