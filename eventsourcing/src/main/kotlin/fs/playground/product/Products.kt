@@ -2,7 +2,9 @@ package fs.playground.product
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import fs.playground.core.*
+import org.hibernate.StaleObjectStateException
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import java.lang.IllegalStateException
 import javax.transaction.Transactional
@@ -59,13 +61,33 @@ class ProductService(
         return eventRepository.findAllByEntityId(EntityId(productId, this::class.java)).fold(null, foldFn)
     }
 
-    fun changeStockQty(productId: Long, stockQty: Int): Events {
-        val event = Events.create(
-                productId,
-                this::class.java,
-                ProductEvent.STOCK_QTY,
-                toJson(Products("[changeStockQty]", stockQty = stockQty)))
-        return eventRepository.save(event)
+    @Transactional
+    fun changeStockQty(productId: Long, stockQty: Int): Events? {
+        val mayBeEntity = entityRepository.findById(EntityId(productId, this::class.java))
+        return if (mayBeEntity.isPresent) {
+            val entity = mayBeEntity.get()
+            entity.updated.plusNanos(1)
+            try {
+                entityRepository.save(entity)
+                val event = Events.create(
+                        productId,
+                        this::class.java,
+                        ProductEvent.STOCK_QTY,
+                        toJson(Products("[changeStockQty]", stockQty = stockQty)))
+                eventRepository.save(event)
+            } catch (e: Exception) {
+                when (e) {
+                    is ObjectOptimisticLockingFailureException, is StaleObjectStateException -> {
+                        null
+                    }
+                    else -> {
+                        throw e
+                    }
+                }
+            }
+        } else {
+            null
+        }
     }
 
 }

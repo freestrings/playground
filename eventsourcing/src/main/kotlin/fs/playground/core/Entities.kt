@@ -2,6 +2,7 @@ package fs.playground.core
 
 import org.springframework.data.jpa.repository.JpaRepository
 import java.io.Serializable
+import java.time.LocalDateTime
 import javax.persistence.*
 
 @Embeddable
@@ -14,6 +15,7 @@ data class EntityId(
 @Table(name = "entities")
 data class Entities(
         @Id @Embedded val id: EntityId,
+        var updated: LocalDateTime = LocalDateTime.now(),
         @Version val version: Long = 0
 ) {
     companion object {

@@ -11,7 +11,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.test.context.junit4.SpringRunner
+import java.util.concurrent.Executors
 import javax.transaction.Transactional
 
 @RunWith(SpringRunner::class)
@@ -28,10 +30,12 @@ class AppTests {
     lateinit var eventRepository: EventRepository
 
     @Autowired
+    lateinit var trasactionManager: JpaTransactionManager
+
+    @Autowired
     lateinit var jacksonObjectMapper: ObjectMapper
 
     @Test
-    @Transactional
     fun `프로덕트 생성`() {
         val productName = "testa"
         val stockQty = 10
@@ -72,4 +76,27 @@ class AppTests {
         productService.changeStockQty(productId, -1)
         assert(productService.load(productId)?.stockQty == 11)
     }
+
+//    @Test
+//    @Transactional(Transactional.TxType.NEVER)
+//    fun `프로덕트 재고 변경 락`() {
+//        val productName = "testa"
+//        val stockQty = 10
+//
+//        var executor = Executors.newFixedThreadPool(2)
+//
+//        val event = productService.create(productName, stockQty)
+//        val productId = event.entityId.entityId
+//        for (i in 1..2) {
+//            executor.execute({
+//                try {
+//                    productService.changeStockQty(productId, 1)
+//                } catch (e: Exception) {
+//                    e.printStackTrace()
+//                }
+//            })
+//        }
+//
+//        executor.shutdown()
+//    }
 }
