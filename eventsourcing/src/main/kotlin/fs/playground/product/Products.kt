@@ -27,13 +27,17 @@ class ProductService(
         @Autowired val jacksonObjectMapper: ObjectMapper
 ) {
 
+    private fun toJson(product: Products) = jacksonObjectMapper.writeValueAsString(product)
+
     @Transactional
     fun create(productName: String, stockQty: Int): Events {
-        val entity = entityRepository.save(Entities.createEntity(this::class.java.name))
-        return eventRepository.save(Events.createEvent(entityId = entity.id.entityId,
-                entityType = entity.id.entityType,
-                eventType = ProductEvent.CREATE.name,
-                eventPayload = jacksonObjectMapper.writeValueAsString(Products(productName, stockQty))))
+        val entity = entityRepository.save(Entities.create(this::class.java))
+        val event = Events.create(
+                entityId = entity.id.entityId,
+                entityType = this::class.java,
+                eventType = ProductEvent.CREATE,
+                eventPayload = toJson(Products(productName, stockQty)))
+        return eventRepository.save(event)
     }
 
     fun load(productId: Long): Products? {
@@ -52,16 +56,16 @@ class ProductService(
             }
         }
 
-        return eventRepository.findAllByEntityId(EntityId(productId, this::class.java.name)).fold(null, foldFn)
+        return eventRepository.findAllByEntityId(EntityId(productId, this::class.java)).fold(null, foldFn)
     }
 
     fun changeStockQty(productId: Long, stockQty: Int): Events {
-        return eventRepository.save(
-                Events.createEvent(
-                        productId,
-                        this::class.java.name,
-                        ProductEvent.STOCK_QTY.name,
-                        jacksonObjectMapper.writeValueAsString(Products("[changeStockQty]", stockQty = stockQty))))
+        val event = Events.create(
+                productId,
+                this::class.java,
+                ProductEvent.STOCK_QTY,
+                toJson(Products("[changeStockQty]", stockQty = stockQty)))
+        return eventRepository.save(event)
     }
 
 }

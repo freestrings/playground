@@ -7,7 +7,7 @@ import javax.persistence.*
 @Embeddable
 data class EntityId(
         @GeneratedValue @Column(name = "entity_id") val entityId: Long = 0,
-        @Column(name = "entity_type") val entityType: String
+        @Convert(converter = ClassConverter::class) @Column(name = "entity_type") val entityType: Class<*>
 ) : Serializable
 
 @Entity
@@ -17,10 +17,10 @@ data class Entities(
         @Version val version: Long = 0
 ) {
     companion object {
-        fun createEntity(entityType: String): Entities {
+        fun create(entityType: Class<*>): Entities {
             return Entities(id = EntityId(entityType = entityType))
         }
     }
 }
 
-interface EntityRepository : JpaRepository<Entities, EntityId>
+interface EntityRepository: JpaRepository<Entities, EntityId>

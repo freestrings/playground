@@ -14,10 +14,10 @@ data class Events(
         @Column(name = "event_payload") val eventPayload: String
 ) {
     companion object {
-        fun createEvent(entityId: Long, entityType: String, eventType: String, eventPayload: String): Events {
+        fun <T : Enum<T>> create(entityId: Long, entityType: Class<*>, eventType: T, eventPayload: String): Events {
             return Events(
                     entityId = EntityId(entityId = entityId, entityType = entityType),
-                    eventType = eventType,
+                    eventType = eventType.name,
                     eventPayload = eventPayload)
         }
     }

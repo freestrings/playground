@@ -1,8 +1,10 @@
 package fs.playground
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import fs.playground.core.*
-import fs.playground.product.ProductEvent
+import fs.playground.core.Entities
+import fs.playground.core.EntityRepository
+import fs.playground.core.EventRepository
+import fs.playground.core.Events
 import fs.playground.product.ProductService
 import fs.playground.product.Products
 import org.junit.Test
