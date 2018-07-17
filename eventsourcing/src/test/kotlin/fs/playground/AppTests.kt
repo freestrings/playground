@@ -13,8 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.test.context.junit4.SpringRunner
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import javax.transaction.Transactional
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(SpringRunner::class)
 @SpringBootTest
@@ -77,26 +79,42 @@ class AppTests {
         assert(productService.load(productId)?.stockQty == 11)
     }
 
-//    @Test
-//    @Transactional(Transactional.TxType.NEVER)
-//    fun `프로덕트 재고 변경 락`() {
-//        val productName = "testa"
-//        val stockQty = 10
-//
-//        var executor = Executors.newFixedThreadPool(2)
-//
-//        val event = productService.create(productName, stockQty)
-//        val productId = event.entityId.entityId
-//        for (i in 1..2) {
-//            executor.execute({
-//                try {
-//                    productService.changeStockQty(productId, 1)
-//                } catch (e: Exception) {
-//                    e.printStackTrace()
-//                }
-//            })
-//        }
-//
-//        executor.shutdown()
-//    }
+    fun change(executor: ExecutorService, countDownLatch: CountDownLatch, productId: Long, ai: AtomicInteger, cb: () -> Unit) {
+        if (countDownLatch.count > 0L) {
+            try {
+                productService.changeStockQty(productId, ai.get())?.let {
+                    countDownLatch.countDown()
+                    executor.execute({
+                        ai.incrementAndGet()
+                        change(executor, countDownLatch, productId, ai, cb)
+                    })
+                }
+            } catch (e: Exception) {
+            }
+        } else {
+            cb()
+        }
+    }
+
+    @Test
+    fun `프로덕트 재고 변경 락`() {
+        val countDownLatch = CountDownLatch(100)
+        var executor = Executors.newFixedThreadPool(5)
+
+        val event = productService.create("testa", 0)
+        val productId = event.entityId.entityId
+        var ai = AtomicInteger()
+
+        for (i in 1..30) {
+            change(executor, countDownLatch, productId, ai) {
+                println("done")
+            }
+        }
+
+        while (countDownLatch.count > 0) {
+            Thread.sleep(1000)
+        }
+
+        executor.shutdown()
+    }
 }
