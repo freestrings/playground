@@ -16,13 +16,14 @@ data class EntityId(
 data class Entities(
         @Id @Embedded val id: EntityId,
         var updated: LocalDateTime = LocalDateTime.now(),
+        @Column(name = "entity_payload") var entityPayload: String,
         @Version val version: Long = 0
 ) {
     companion object {
-        fun create(entityType: Class<*>): Entities {
-            return Entities(id = EntityId(entityType = entityType))
+        fun create(entityType: Class<*>, entityPayload: String): Entities {
+            return Entities(id = EntityId(entityType = entityType), entityPayload = entityPayload)
         }
     }
 }
 
-interface EntityRepository: JpaRepository<Entities, EntityId>
+interface EntityRepository : JpaRepository<Entities, EntityId>

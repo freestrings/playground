@@ -5,18 +5,17 @@ import fs.playground.core.Entities
 import fs.playground.core.EntityRepository
 import fs.playground.core.EventRepository
 import fs.playground.core.Events
+import fs.playground.product.AdustState
+import fs.playground.product.ProductEntityPayload
 import fs.playground.product.ProductService
 import fs.playground.product.Products
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.orm.jpa.JpaTransactionManager
 import org.springframework.test.context.junit4.SpringRunner
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(SpringRunner::class)
 @SpringBootTest
@@ -32,16 +31,13 @@ class AppTests {
     lateinit var eventRepository: EventRepository
 
     @Autowired
-    lateinit var trasactionManager: JpaTransactionManager
-
-    @Autowired
     lateinit var jacksonObjectMapper: ObjectMapper
 
     @Test
     fun `프로덕트 생성`() {
         val productName = "testa"
         val stockQty = 10
-        val event = productService.create(productName, stockQty)
+        val event = productService.create(productName, ProductEntityPayload(stockQty))
 
         val foundEntity: Entities? = entityRepository.getOne(event.entityId)
         foundEntity?.let {
@@ -68,53 +64,62 @@ class AppTests {
     fun `프로덕트 재고 변경`() {
         val productName = "testa"
         val stockQty = 10
-        val event = productService.create(productName, stockQty)
+        val event = productService.create(productName, ProductEntityPayload(stockQty))
         val productId = event.entityId.entityId
 
-        productService.changeStockQty(productId, 1)
+        productService.adjustStockQty(productId, 1)
         assert(productService.load(productId)?.stockQty == 11)
-        productService.changeStockQty(productId, 1)
+        productService.adjustStockQty(productId, 1)
         assert(productService.load(productId)?.stockQty == 12)
-        productService.changeStockQty(productId, -1)
+        productService.adjustStockQty(productId, -1)
         assert(productService.load(productId)?.stockQty == 11)
-    }
-
-    fun change(executor: ExecutorService, countDownLatch: CountDownLatch, productId: Long, ai: AtomicInteger, cb: () -> Unit) {
-        if (countDownLatch.count > 0L) {
-            try {
-                productService.changeStockQty(productId, ai.get())?.let {
-                    countDownLatch.countDown()
-                    executor.execute({
-                        ai.incrementAndGet()
-                        change(executor, countDownLatch, productId, ai, cb)
-                    })
-                }
-            } catch (e: Exception) {
-            }
-        } else {
-            cb()
-        }
     }
 
     @Test
     fun `프로덕트 재고 변경 락`() {
-        val countDownLatch = CountDownLatch(100)
-        var executor = Executors.newFixedThreadPool(5)
-
-        val event = productService.create("testa", 0)
-        val productId = event.entityId.entityId
-        var ai = AtomicInteger()
-
-        for (i in 1..30) {
-            change(executor, countDownLatch, productId, ai) {
-                println("done")
+        val buy: (Long) -> Boolean = { productId ->
+            var done = false
+            val iter = 100
+            val countDownLatch = CountDownLatch(iter)
+            var executor = Executors.newFixedThreadPool(5)
+            for (i in 1..iter) {
+                executor.execute {
+                    val adustState = productService.adjustStockQty(productId, -1)
+                    countDownLatch.countDown()
+                    when (adustState) {
+                        AdustState.FAIL -> {
+                            done = true
+                            assert(false)
+                        }
+                        AdustState.OVERFLOWED -> {
+                            done = true
+                            println("overflowed")
+                            assert(true)
+                        }
+                        AdustState.SOLDOUT -> {
+                            println("soldout")
+                        }
+                        else -> {
+                            // ignored
+                        }
+                    }
+                }
             }
+
+            while (countDownLatch.count > 0) {
+                Thread.sleep(10)
+            }
+
+            executor.shutdown()
+
+            done
         }
 
-        while (countDownLatch.count > 0) {
-            Thread.sleep(1000)
-        }
+        val event = productService.create("testa", ProductEntityPayload(100))
+        val productId = event.entityId.entityId
 
-        executor.shutdown()
+        while (!buy(productId)) {
+            Thread.sleep(10)
+        }
     }
 }
