@@ -1,5 +1,6 @@
 package fs.playground.core
 
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.jpa.repository.JpaRepository
 import javax.persistence.*
 
@@ -20,4 +21,22 @@ data class Snapshots(
     }
 }
 
-interface SnapshotRepository : JpaRepository<Snapshots, Long>
+interface SnapshotRepository : JpaRepository<Snapshots, Long>, SnapshotRepositoryCustom
+
+interface SnapshotRepositoryCustom {
+    fun findTop1OrderByEventIdDesc(): Snapshots?
+}
+
+class SnapshotRepositoryImpl(
+        @Autowired val entityManager: EntityManager
+) : SnapshotRepositoryCustom {
+    override fun findTop1OrderByEventIdDesc(): Snapshots? {
+        val query = entityManager.createQuery("select s from Snapshots s order by s.eventId desc", Snapshots::class.java)
+        query.maxResults = 1
+        return try {
+            query.singleResult
+        } catch (e: NoResultException) {
+            null
+        }
+    }
+}

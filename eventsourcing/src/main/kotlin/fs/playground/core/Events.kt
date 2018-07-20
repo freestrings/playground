@@ -25,4 +25,6 @@ data class Events(
 
 interface EventRepository : JpaRepository<Events, Long> {
     fun findAllByEntityId(entityId: EntityId): List<Events>
+    fun findTop10ByEntityIdOrderByEventIdDesc(entityId: EntityId): List<Events>
+    fun findAllByEventIdGreaterThanAndEntityIdOrderByEventIdAsc(eventId: Long, entityId: EntityId): List<Events>
 }

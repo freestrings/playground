@@ -37,6 +37,7 @@ enum class AdustState {
 class ProductService(
         @Autowired private val entityRepository: EntityRepository,
         @Autowired private val eventRepository: EventRepository,
+        @Autowired private val snapshotRepository: SnapshotRepository,
         @Autowired private val jacksonObjectMapper: ObjectMapper
 ) {
 
@@ -72,6 +73,43 @@ class ProductService(
         return eventRepository.findAllByEntityId(EntityId(productId, this::class.java)).fold(null, foldFn)
     }
 
+    fun find(productId: Long): Products {
+        val foldFn: (Products, Events) -> Products = { product, event ->
+            val payload = jacksonObjectMapper.readValue(event.eventPayload, Products::class.java)
+            when (ProductEvent.valueOf(event.eventType)) {
+                ProductEvent.CREATE -> payload
+                ProductEvent.STOCK_QTY -> product.apply(Products(product.productName, payload.stockQty))
+            }
+        }
+
+        val snapshot = snapshotRepository.findTop1OrderByEventIdDesc()
+        return snapshot?.let {
+            val events = eventRepository.findAllByEventIdGreaterThanAndEntityIdOrderByEventIdAsc(it.eventId, EntityId(productId, this::class.java))
+            val product = events.fold(jacksonObjectMapper.readValue(snapshot.snapshotPayload, Products::class.java), foldFn)
+            if (!events.isEmpty()) {
+                val lastEvent = events.last()
+                val create = Snapshots.create(lastEvent.eventId, productId, Products::class.java, toJson(product))
+                try {
+                    snapshotRepository.save(create)
+                } catch (e: Exception) {
+                }
+            }
+            product
+        } ?: run {
+            val events = eventRepository.findAllByEntityId(EntityId(productId, this::class.java))
+            val product = events.fold(Products("", 0), foldFn)
+            if (!events.isEmpty()) {
+                val lastEvent = events.last()
+                val create = Snapshots.create(lastEvent.eventId, productId, Products::class.java, toJson(product))
+                try {
+                    snapshotRepository.save(create)
+                } catch (e: Exception) {
+                }
+            }
+            product
+        }
+    }
+
     fun adjustStockQty(productId: Long, stockQty: Int): AdustState {
         val entity = entityRepository.getOne(EntityId(productId, this::class.java))
         val entityPayload = jacksonObjectMapper.readValue(entity.entityPayload, ProductEntityPayload::class.java)
@@ -81,16 +119,16 @@ class ProductService(
         return try {
             entity.updated = entity.updated.plusNanos(1)
             var newEntity = entityRepository.save(entity)
-            val newStockQty = load(productId)?.let { it.stockQty + stockQty } ?: run { stockQty }
+            val newStockQty = find(productId).stockQty + stockQty
+//            val newStockQty = load(productId)?.let { it.stockQty + stockQty } ?: run { stockQty }
             if (newStockQty <= 0) {
                 newEntity.entityPayload = toJson(ProductEntityPayload(entityPayload.stockQty, true))
                 entityRepository.save(newEntity)
-                AdustState.OVERFLOWED
             } else {
                 val event = Events.create(productId, this::class.java, ProductEvent.STOCK_QTY, toJson(Products("[adjustStockQty]", stockQty = stockQty)))
                 eventRepository.save(event)
-                AdustState.CHANGED
             }
+            AdustState.CHANGED
         } catch (e: Exception) {
             when (e) {
                 is ObjectOptimisticLockingFailureException, is StaleObjectStateException -> {

@@ -79,7 +79,7 @@ class AppTests {
     fun `프로덕트 재고 변경 락`() {
         val buy: (Long) -> Boolean = { productId ->
             var done = false
-            val iter = 100
+            val iter = 10
             val countDownLatch = CountDownLatch(iter)
             var executor = Executors.newFixedThreadPool(5)
             for (i in 1..iter) {
@@ -97,6 +97,7 @@ class AppTests {
                             assert(true)
                         }
                         AdustState.SOLDOUT -> {
+                            done = true
                             println("soldout")
                         }
                         else -> {
