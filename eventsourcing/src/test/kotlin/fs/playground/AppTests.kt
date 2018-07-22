@@ -39,9 +39,9 @@ class AppTests {
         val stockQty = 10
         val event = productService.create(productName, ProductEntityPayload(stockQty))
 
-        val foundEntity: Entities? = entityRepository.getOne(event.entityId)
+        val foundEntity: Entities? = entityRepository.getOne(event.entityId.entityId)
         foundEntity?.let {
-            assert(event.entityId.entityId == it.id.entityId)
+            assert(event.entityId.entityId == it.entityId)
         } ?: run {
             throw AssertionError()
         }
@@ -90,11 +90,6 @@ class AppTests {
                         AdustState.FAIL -> {
                             done = true
                             assert(false)
-                        }
-                        AdustState.OVERFLOWED -> {
-                            done = true
-                            println("overflowed")
-                            assert(true)
                         }
                         AdustState.SOLDOUT -> {
                             done = true

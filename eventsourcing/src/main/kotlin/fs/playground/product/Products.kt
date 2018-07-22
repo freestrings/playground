@@ -25,12 +25,10 @@ data class ProductEntityPayload(
 
 enum class ProductEvent {
     CREATE, STOCK_QTY
-
 }
 
 enum class AdustState {
-    CHANGED, RETRY, FAIL, SOLDOUT, OVERFLOWED
-
+    ADJUSTED, RETRY, FAIL, SOLDOUT
 }
 
 @Service
@@ -48,7 +46,7 @@ class ProductService(
     fun create(productName: String, productEntityPayload: ProductEntityPayload): Events {
         val entity = entityRepository.save(Entities.create(this::class.java, toJson(productEntityPayload)))
         val event = Events.create(
-                entityId = entity.id.entityId,
+                entityId = entity.entityId,
                 entityType = this::class.java,
                 eventType = ProductEvent.CREATE,
                 eventPayload = toJson(Products(productName, productEntityPayload.stockQty)))
@@ -110,8 +108,13 @@ class ProductService(
         }
     }
 
+    private fun isSoldout(productId: Long, stockQty: Int): Boolean {
+        return find(productId).stockQty + stockQty <= 0
+//            return load(productId)?.let { it.stockQty + stockQty } ?: run { stockQty }
+    }
+
     fun adjustStockQty(productId: Long, stockQty: Int): AdustState {
-        val entity = entityRepository.getOne(EntityId(productId, this::class.java))
+        val entity = entityRepository.getOne(productId)
         val entityPayload = jacksonObjectMapper.readValue(entity.entityPayload, ProductEntityPayload::class.java)
         if (entityPayload.soldOut) {
             return AdustState.SOLDOUT
@@ -119,16 +122,15 @@ class ProductService(
         return try {
             entity.updated = entity.updated.plusNanos(1)
             var newEntity = entityRepository.save(entity)
-            val newStockQty = find(productId).stockQty + stockQty
-//            val newStockQty = load(productId)?.let { it.stockQty + stockQty } ?: run { stockQty }
-            if (newStockQty <= 0) {
+            if (isSoldout(productId, stockQty)) {
                 newEntity.entityPayload = toJson(ProductEntityPayload(entityPayload.stockQty, true))
                 entityRepository.save(newEntity)
+                AdustState.SOLDOUT
             } else {
                 val event = Events.create(productId, this::class.java, ProductEvent.STOCK_QTY, toJson(Products("[adjustStockQty]", stockQty = stockQty)))
                 eventRepository.save(event)
+                AdustState.ADJUSTED
             }
-            AdustState.CHANGED
         } catch (e: Exception) {
             when (e) {
                 is ObjectOptimisticLockingFailureException, is StaleObjectStateException -> {

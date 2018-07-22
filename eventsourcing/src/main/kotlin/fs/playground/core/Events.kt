@@ -8,7 +8,7 @@ import javax.persistence.*
         indexes = arrayOf(Index(name = "idx_entity", columnList = "entity_id,entity_type"))
 )
 data class Events(
-        @Id @GeneratedValue @Column(name = "event_id") val eventId: Long = 0,
+        @Id @GeneratedValue(strategy = GenerationType.IDENTITY) @Column(name = "event_id") val eventId: Long = 0,
         @Embedded val entityId: EntityId,
         @Column(name = "event_type") val eventType: String,
         @Column(name = "event_payload") val eventPayload: String
