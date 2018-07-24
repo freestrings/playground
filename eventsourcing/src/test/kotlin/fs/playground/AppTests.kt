@@ -1,14 +1,8 @@
 package fs.playground
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import fs.playground.core.Entities
-import fs.playground.core.EntityRepository
-import fs.playground.core.EventRepository
-import fs.playground.core.Events
-import fs.playground.product.AdustState
-import fs.playground.product.ProductEntityPayload
-import fs.playground.product.ProductService
-import fs.playground.product.Products
+import fs.playground.core.*
+import fs.playground.product.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.springframework.beans.factory.annotation.Autowired
@@ -22,7 +16,7 @@ import java.util.concurrent.Executors
 class AppTests {
 
     @Autowired
-    lateinit var productService: ProductService
+    lateinit var productService: ProductServiceOptimisticLock
 
     @Autowired
     lateinit var entityRepository: EntityRepository
@@ -37,23 +31,22 @@ class AppTests {
     fun `프로덕트 생성`() {
         val productName = "testa"
         val stockQty = 10
-        val event = productService.create(productName, ProductEntityPayload(stockQty))
+        val entityId = productService.create(productName, ProductEntityPayload(stockQty))
 
-        val foundEntity: Entities? = entityRepository.getOne(event.entityId.entityId)
+        val foundEntity: Entities? = entityRepository.getOne(entityId)
         foundEntity?.let {
-            assert(event.entityId.entityId == it.entityId)
+            assert(entityId == it.entityId)
         } ?: run {
             throw AssertionError()
         }
 
-        val events = eventRepository.findAllByEntityId(event.entityId)
+        val events = eventRepository.findAllByEntityId(EntityId(entityId, ProductService::class.java))
         if (events.isEmpty()) {
             throw AssertionError()
         }
 
         val targetEvent: Events = events.first()
-        assert(event.entityId.entityId == targetEvent.entityId.entityId)
-        assert(event.entityId.entityType == targetEvent.entityId.entityType)
+        assert(entityId == targetEvent.entityId.entityId)
 
         val foundProduct = jacksonObjectMapper.readValue(targetEvent.eventPayload, Products::class.java)
         assert(productName == foundProduct.productName)
@@ -64,8 +57,7 @@ class AppTests {
     fun `프로덕트 재고 변경`() {
         val productName = "testa"
         val stockQty = 10
-        val event = productService.create(productName, ProductEntityPayload(stockQty))
-        val productId = event.entityId.entityId
+        val productId = productService.create(productName, ProductEntityPayload(stockQty))
 
         productService.adjustStockQty(productId, 1)
         assert(productService.load(productId)?.stockQty == 11)
@@ -111,8 +103,7 @@ class AppTests {
             done
         }
 
-        val event = productService.create("testa", ProductEntityPayload(100))
-        val productId = event.entityId.entityId
+        val productId = productService.create("testa", ProductEntityPayload(100))
 
         while (!buy(productId)) {
             Thread.sleep(10)

@@ -24,14 +24,16 @@ data class Snapshots(
 interface SnapshotRepository : JpaRepository<Snapshots, Long>, SnapshotRepositoryCustom
 
 interface SnapshotRepositoryCustom {
-    fun findTop1OrderByEventIdDesc(): Snapshots?
+    fun findTop1OrderByEventIdDesc(entityId: Long, entityType: Class<*>): Snapshots?
 }
 
 class SnapshotRepositoryImpl(
         @Autowired val entityManager: EntityManager
 ) : SnapshotRepositoryCustom {
-    override fun findTop1OrderByEventIdDesc(): Snapshots? {
-        val query = entityManager.createQuery("select s from Snapshots s order by s.eventId desc", Snapshots::class.java)
+    override fun findTop1OrderByEventIdDesc(entityId: Long, entityType: Class<*>): Snapshots? {
+        val query = entityManager.createQuery("select s from Snapshots s and s.entityId=:entityId and s.entityType=:entityType order by s.eventId desc", Snapshots::class.java)
+        query.setParameter("entityId", entityId)
+        query.setParameter("entityType", entityType.name)
         query.maxResults = 1
         return try {
             query.singleResult
