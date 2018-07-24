@@ -31,11 +31,16 @@ class SnapshotRepositoryImpl(
         @Autowired val entityManager: EntityManager
 ) : SnapshotRepositoryCustom {
     override fun findTop1OrderByEventIdDesc(entityId: Long, entityType: Class<*>): Snapshots? {
-        val query = entityManager.createQuery("select s from Snapshots s and s.entityId=:entityId and s.entityType=:entityType order by s.eventId desc", Snapshots::class.java)
-        query.setParameter("entityId", entityId)
-        query.setParameter("entityType", entityType.name)
-        query.maxResults = 1
+        val query = entityManager.createQuery("""
+            select s from Snapshots s
+            where s.entityId.entityId=:entityId
+            and s.entityId.entityType=:entityType
+            order by s.eventId desc
+        """, Snapshots::class.java)
         return try {
+            query.setParameter("entityId", entityId)
+            query.setParameter("entityType", entityType)
+            query.maxResults = 1
             query.singleResult
         } catch (e: NoResultException) {
             null

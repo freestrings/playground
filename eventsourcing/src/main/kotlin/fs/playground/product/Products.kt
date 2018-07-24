@@ -47,7 +47,7 @@ interface ProductService {
     fun adjustStockQty(productId: Long, stockQty: Int): AdustState
 }
 
-@Primary
+//@Primary
 @Service
 class ProductServicePessimisticLock(
         @Autowired val productRepository: ProductRepository
@@ -78,6 +78,7 @@ class ProductServicePessimisticLock(
     }
 }
 
+@Primary
 @Service
 class ProductServiceOptimisticLock(
         @Autowired private val entityRepository: EntityRepository,
@@ -96,7 +97,7 @@ class ProductServiceOptimisticLock(
         val entity = entityRepository.save(Entities.create(ProductService::class.java, toJson(productEntityPayload)))
         val event = Events.create(
                 entityId = entity.entityId,
-                entityType = this::class.java,
+                entityType = ProductService::class.java,
                 eventType = ProductEvent.CREATE,
                 eventPayload = toJson(Products(productName, productEntityPayload.stockQty)))
         return eventRepository.save(event).entityId.entityId
@@ -158,7 +159,10 @@ class ProductServiceOptimisticLock(
         return find(productId).stockQty + stockQty <= 0
     }
 
-    @Transactional
+    /**
+     * Transactional 이면 안된다. StaleObjectStateException에서 롤백된다.
+     */
+//    @Transactional
     override fun adjustStockQty(productId: Long, stockQty: Int): AdustState {
         val entity = entityRepository.getOne(productId)
         val entityPayload = jacksonObjectMapper.readValue(entity.entityPayload, ProductEntityPayload::class.java)
