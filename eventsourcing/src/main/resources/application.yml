@@ -1,6 +1,7 @@
 spring:
+  profiles: local
   datasource:
-    url: jdbc:mysql://mysql:3306/testa
+    url: jdbc:mysql://localhost:3307/testa
     username: user
     password: 1111
     driver-class-name: com.mysql.jdbc.Driver
@@ -8,3 +9,15 @@ server:
   port: 8081
 
 #logging.level.org.hibernate: TRACE
+
+---
+
+spring:
+  profiles: docker
+  datasource:
+    url: jdbc:mysql://mysql:3306/testa
+    username: user
+    password: 1111
+    driver-class-name: com.mysql.jdbc.Driver
+server:
+  port: 8080

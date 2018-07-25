@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import fs.playground.core.*
 import org.hibernate.StaleObjectStateException
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.context.annotation.Primary
+import org.springframework.context.annotation.Profile
 import org.springframework.orm.ObjectOptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import java.lang.IllegalStateException
@@ -47,7 +47,7 @@ interface ProductService {
     fun adjustStockQty(productId: Long, stockQty: Int): AdustState
 }
 
-//@Primary
+@Profile("pessimistic")
 @Service
 class ProductServicePessimisticLock(
         @Autowired val productRepository: ProductRepository
@@ -78,7 +78,7 @@ class ProductServicePessimisticLock(
     }
 }
 
-@Primary
+@Profile("optimistic")
 @Service
 class ProductServiceOptimisticLock(
         @Autowired private val entityRepository: EntityRepository,

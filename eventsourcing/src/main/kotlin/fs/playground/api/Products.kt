@@ -1,6 +1,9 @@
 package fs.playground.api
 
-import fs.playground.product.*
+import fs.playground.product.AdustState
+import fs.playground.product.ProductEntityPayload
+import fs.playground.product.ProductService
+import fs.playground.product.Products
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.web.bind.annotation.*
 
@@ -21,7 +24,8 @@ class ProductApi(
 
     @PostMapping("/product/{productId}")
     fun buy(@PathVariable productId: Long): String {
-        val adjustState = productService.adjustStockQty(productId, -1)
+        val stockQty = -1
+        val adjustState = productService.adjustStockQty(productId, stockQty)
         return when (adjustState) {
             AdustState.SOLDOUT -> {
                 throw Exception("soldout")
