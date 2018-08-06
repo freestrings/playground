@@ -1,0 +1,7 @@
+filebeat.prospectors:
+  - input_type: log
+    paths:
+      - /app.log
+
+output.logstash:
+  hosts: [ "logstash:5044" ]

@@ -1,0 +1,30 @@
+version: '3.5'
+services:
+  filebeat:
+    hostname: filebeat
+    entrypoint: "filebeat -e -strict.perms=false"
+    image: docker.elastic.co/beats/filebeat:6.3.0
+    volumes:
+      - "./build/app.log:/app.log:ro"
+      - "./docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro"
+    depends_on:
+      - logstash
+
+  logstash:
+    hostname: logstash
+    image: docker.elastic.co/logstash/logstash-oss:6.3.0
+    ports:
+      - "5044:5044"
+    volumes:
+      - "./docker/logstash/pipeline:/usr/share/logstash/pipeline:ro"
+    depends_on:
+      - elasticsearch
+
+  elasticsearch:
+    hostname: elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - "discovery.type=single-node"
