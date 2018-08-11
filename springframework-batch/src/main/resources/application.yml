@@ -1,0 +1,15 @@
+spring:
+  main:
+    banner-mode: "off"
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/testa
+    username: user
+    password: 1111
+    driverClassName: com.mysql.jdbc.Driver
+
+  batch:
+    initialize-schema: always
+    job.enabled: false
+
+#logging.level.root: DEBUG
