@@ -1,18 +1,18 @@
 buildscript {
-	ext {
-		kotlinVersion = '1.2.41'
-		springBootVersion = '2.1.0.M1'
-	}
-	repositories {
-		mavenCentral()
+    ext {
+        kotlinVersion = '1.2.41'
+        springBootVersion = '2.1.0.M1'
+    }
+    repositories {
+        mavenCentral()
         maven { url "https://repo.spring.io/snapshot" }
         maven { url "https://repo.spring.io/milestone" }
-	}
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-		classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
-		classpath("org.jetbrains.kotlin:kotlin-allopen:${kotlinVersion}")
-	}
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-allopen:${kotlinVersion}")
+    }
 }
 
 apply plugin: 'kotlin'
@@ -24,31 +24,30 @@ group = 'fs.playground'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = 1.8
 compileKotlin {
-	kotlinOptions {
-		freeCompilerArgs = ["-Xjsr305=strict"]
-		jvmTarget = "1.8"
-	}
+    kotlinOptions {
+        freeCompilerArgs = ["-Xjsr305=strict"]
+        jvmTarget = "1.8"
+    }
 }
 compileTestKotlin {
-	kotlinOptions {
-		freeCompilerArgs = ["-Xjsr305=strict"]
-		jvmTarget = "1.8"
-	}
+    kotlinOptions {
+        freeCompilerArgs = ["-Xjsr305=strict"]
+        jvmTarget = "1.8"
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
     maven { url "https://repo.spring.io/snapshot" }
     maven { url "https://repo.spring.io/milestone" }
 }
 
 
 dependencies {
-	compile('org.springframework.boot:spring-boot-starter-batch')
+    compile('org.springframework.boot:spring-boot-starter-batch')
     compile("org.springframework.batch:spring-batch-integration")
 
-    compile("org.springframework.boot:spring-boot-starter-activemq")
-    //compile("org.springframework.boot:spring-boot-starter-amqp")
+    compile("org.springframework.boot:spring-boot-starter-amqp")
     compile("org.springframework.boot:spring-boot-starter-integration")
     compile("org.springframework.integration:spring-integration-jms")
 
@@ -56,8 +55,8 @@ dependencies {
     compile('com.rabbitmq.jms:rabbitmq-jms:1.9.0')
 
     compile("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-	compile("org.jetbrains.kotlin:kotlin-reflect")
+    compile("org.jetbrains.kotlin:kotlin-reflect")
 
     testCompile('org.springframework.boot:spring-boot-starter-test')
-	testCompile('org.springframework.batch:spring-batch-test')
+    testCompile('org.springframework.batch:spring-batch-test')
 }

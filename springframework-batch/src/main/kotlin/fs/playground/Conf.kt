@@ -6,13 +6,14 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory
 import org.springframework.batch.core.step.builder.SimpleStepBuilder
+import org.springframework.batch.item.ItemProcessor
 import org.springframework.batch.item.ItemReader
-import org.springframework.batch.item.ItemWriter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.util.function.Function
+import org.springframework.context.annotation.Profile
 
+@Profile("default")
 @Configuration
 @EnableBatchProcessing
 class Conf(
@@ -53,7 +54,7 @@ class Conf(
         return job
     }
 
-    fun reader(name: String, _count: Int): ItemReader<String> {
+    private fun reader(name: String, _count: Int): ItemReader<String> {
         var count = _count
         return ItemReader<String> {
             if (count-- > 0) {
@@ -64,16 +65,12 @@ class Conf(
         }
     }
 
-    fun processor() = Function<String, String> { it }
-
-    fun writer() = ItemWriter<String> { it -> println(it) }
-
     private fun stepBuilder(name: String, chunkSize: Int): SimpleStepBuilder<String, String>? {
         return stepBuilderFactory.get(name)
                 .chunk<String, String>(chunkSize)
                 .reader(reader(name, chunkSize + 1))
-                .processor(processor())
-                .writer(writer())
+                .processor(ItemProcessor { it })
+                .writer { it -> println(it) }
     }
 
     fun step(name: String, chunkSize: Int) = stepBuilder(name, chunkSize)!!.build()
