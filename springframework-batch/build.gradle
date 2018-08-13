@@ -1,7 +1,7 @@
 buildscript {
 	ext {
 		kotlinVersion = '1.2.41'
-		springBootVersion = '2.1.0.M1'
+		springBootVersion = '2.0.4.RELEASE'
 	}
 	repositories {
 		mavenCentral()
@@ -47,12 +47,12 @@ dependencies {
 	compile('org.springframework.boot:spring-boot-starter-batch')
     compile("org.springframework.batch:spring-batch-integration")
 
-    compile("org.springframework.boot:spring-boot-starter-activemq")
-    //compile("org.springframework.boot:spring-boot-starter-amqp")
-    compile("org.springframework.boot:spring-boot-starter-integration")
-    compile("org.springframework.integration:spring-integration-jms")
+//	compile("org.springframework.boot:spring-boot-starter-activemq")
+	compile("org.springframework.boot:spring-boot-starter-amqp")
+	compile("org.springframework.boot:spring-boot-starter-integration")
+	compile("org.springframework.integration:spring-integration-jms")
 
-    compile('mysql:mysql-connector-java')
+	compile('mysql:mysql-connector-java')
     compile('com.rabbitmq.jms:rabbitmq-jms:1.9.0')
 
     compile("org.jetbrains.kotlin:kotlin-stdlib-jdk8")

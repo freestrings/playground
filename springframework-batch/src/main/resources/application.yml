@@ -12,13 +12,10 @@ spring:
     initialize-schema: always
     job.enabled: false
 
-activemq:
-  broker-url: tcp://localhost:61616
-
-#  rabbitmq:
-#    host: localhost
-#    port: 5672
-#    username: guest
-#    password: guest
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
 
 #logging.level.root: DEBUG

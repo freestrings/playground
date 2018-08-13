@@ -12,18 +12,18 @@ services:
     volumes:
     - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
 
-  activemq:
-    image: rmohr/activemq
-    ports:
-      - "61616:61616"
-      - "8161:8161"
-
-#  rabbitmq:9090
-
-#    image: rabbitmq:management
+#  activemq:
+#    image: rmohr/activemq
 #    ports:
-#    - "5672:5672"
-#    - "15672:15672"
+#      - "61616:61616"
+#      - "8161:8161"
+
+  rabbitmq:
+    image: rabbitmq:management
+    ports:
+    - "5672:5672"
+    - "15672:15672"
+
 #  mysql-data:
 #    image: mysql
 #    restart: always

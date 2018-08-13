@@ -12,4 +12,9 @@ spring:
     initialize-schema: always
     job.enabled: false
 
-logging.level.root: DEBUG
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+#logging.level.root: DEBUG
