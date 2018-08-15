@@ -9,7 +9,6 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.configuration.annotation.StepScope
 import org.springframework.batch.core.step.builder.SimpleStepBuilder
 import org.springframework.batch.integration.chunk.ChunkMessageChannelItemWriter
-import org.springframework.batch.integration.chunk.RemoteChunkHandlerFactoryBean
 import org.springframework.batch.item.ItemReader
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
@@ -20,7 +19,6 @@ import org.springframework.integration.channel.QueueChannel
 import org.springframework.integration.core.MessagingTemplate
 import org.springframework.integration.dsl.IntegrationFlow
 import org.springframework.integration.dsl.IntegrationFlows
-import org.springframework.integration.jms.JmsOutboundGateway
 import org.springframework.integration.jms.dsl.Jms
 import javax.jms.ConnectionFactory
 
@@ -50,11 +48,19 @@ class MasterConfig(
     }
 
     @Bean
-    fun jmsOutboundFlow(): IntegrationFlow {
-        return IntegrationFlows.from("requests")
-                .handle<JmsOutboundGateway>(Jms.outboundGateway(connectionFactory())
-                        .requestDestination("requests"))
-                .get()
+    fun inboundFlow(): IntegrationFlow {
+        return IntegrationFlows
+                .from(Jms.messageDrivenChannelAdapter(connectionFactory()).destination("replies"))
+                .channel(replies())
+                .get();
+    }
+
+    @Bean
+    fun outboundFlow(): IntegrationFlow {
+        return IntegrationFlows
+                .from(requests())
+                .handle(Jms.outboundAdapter(connectionFactory()).destination("requests"))
+                .get();
     }
 
     @Bean
@@ -63,16 +69,6 @@ class MasterConfig(
         template.setDefaultChannel(requests());
         template.setReceiveTimeout(2000);
         return template
-    }
-
-    @Bean
-    fun jmsReplies(): IntegrationFlow {
-        return IntegrationFlows
-                .from(Jms.messageDrivenChannelAdapter(connectionFactory())
-                        .configureListenerContainer { c -> c.subscriptionDurable(false) }
-                        .destination("replies"))
-                .channel(replies())
-                .get()
     }
 
     @Bean
@@ -89,14 +85,6 @@ class MasterConfig(
         chunkMessageChannelItemWriter.setMessagingOperations(messagingTemplate());
         chunkMessageChannelItemWriter.setReplyChannel(replies());
         return chunkMessageChannelItemWriter
-    }
-
-    @Bean
-    fun chunkHandler(): RemoteChunkHandlerFactoryBean<String> {
-        val remoteChunkHandlerFactoryBean = RemoteChunkHandlerFactoryBean<String>()
-        remoteChunkHandlerFactoryBean.setChunkWriter(itemWriter())
-        remoteChunkHandlerFactoryBean.setStep(step1());
-        return remoteChunkHandlerFactoryBean
     }
 
     @Bean
