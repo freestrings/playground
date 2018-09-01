@@ -1,0 +1,24 @@
+[[showcase-dummy-post]]
+== 쇼케이스 POST 더미 요청
+
+POST 쇼케이스란 말이다.
+
+[[showcase-dummy-post-request-fields]]
+=== 요청 형식
+include::{snippets}/showcase-dummy-post/request-fields.adoc[]
+
+[[showcase-dummy-post-request-body]]
+=== 요청 예제
+include::{snippets}/showcase-dummy-post/request-body.adoc[]
+
+[[showcase-dummy-post-request-example]]
+=== 요청 예제
+include::{snippets}/showcase-dummy-post/http-request.adoc[]
+
+[[showcase-dummy-post-response-fields]]
+=== 응답 형식
+include::{snippets}/showcase-dummy-post/response-fields.adoc[]
+
+[[showcase-dummy-post-response-body]]
+=== 응답 예제
+include::{snippets}/showcase-dummy-post/response-body.adoc[]

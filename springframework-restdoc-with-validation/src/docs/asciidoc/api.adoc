@@ -1,0 +1,6 @@
+= API
+:toc:
+
+include::showcase-echo-get.adoc[]
+include::showcase-dummy-get.adoc[]
+include::showcase-dummy-post.adoc[]

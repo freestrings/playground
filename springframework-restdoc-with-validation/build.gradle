@@ -1,0 +1,136 @@
+buildscript {
+    ext {
+        kotlinVersion = '1.2.60'
+        springBootVersion = '2.0.4.RELEASE'
+        gradleDockerVersion = '0.13.0'
+        asciidoctorGradleVersion = '1.5.7'
+        asciidoctorJPdfVersion =  '1.5.0-alpha.16'
+
+    }
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-allopen:${kotlinVersion}")
+        classpath("gradle.plugin.com.palantir.gradle.docker:gradle-docker:${gradleDockerVersion}")
+        classpath("org.asciidoctor:asciidoctor-gradle-plugin:${asciidoctorGradleVersion}")
+        classpath("org.asciidoctor:asciidoctorj-pdf:${asciidoctorJPdfVersion}")
+//        classpath("org.springframework.cloud:spring-cloud-contract-gradle-plugin:2.0.1.RELEASE")
+    }
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'kotlin-spring'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+apply plugin: 'war'
+apply plugin: 'com.palantir.docker'
+apply plugin: 'org.asciidoctor.convert'
+//apply plugin: 'maven-publish'
+
+group = 'com.wmp.settle'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+compileKotlin {
+    kotlinOptions {
+        freeCompilerArgs = ["-Xjsr305=strict"]
+        jvmTarget = "1.8"
+    }
+}
+compileTestKotlin {
+    kotlinOptions {
+        freeCompilerArgs = ["-Xjsr305=strict"]
+        jvmTarget = "1.8"
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://dl.bintray.com/palantir/releases/'
+    }
+}
+
+ext {
+    springCloudVersion = 'Finchley.SR1'
+    dockerComposeRuleJunit4Version = '0.34.0'
+    jsonPathVersion = '2.4.0'
+    snippetsDir = file('build/generated-snippets')
+}
+
+dependencies {
+    compile('org.springframework.boot:spring-boot-starter-web')
+    compile('org.springframework.cloud:spring-cloud-starter-netflix-zuul')
+    compile('org.springframework.boot:spring-boot-starter-thymeleaf')
+    compile("org.springframework.boot:spring-boot-devtools")
+
+    compile('com.fasterxml.jackson.module:jackson-module-kotlin')
+    compile("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    compile("org.jetbrains.kotlin:kotlin-reflect")
+
+    providedRuntime('org.springframework.boot:spring-boot-starter-tomcat')
+
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompile("org.springframework.restdocs:spring-restdocs-mockmvc")
+    testCompile('org.springframework.restdocs:spring-restdocs-asciidoctor')
+//    testCompile('org.springframework.cloud:spring-cloud-contract-wiremock')
+
+    testCompile("com.jayway.jsonpath:json-path:${jsonPathVersion}")
+    testCompile("com.jayway.jsonpath:json-path-assert:${jsonPathVersion}")
+
+    testCompile("com.palantir.docker.compose:docker-compose-rule-junit4:${dockerComposeRuleJunit4Version}")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+bootRun {
+    systemProperties = System.properties
+}
+
+docker {
+    dependsOn build
+    dockerfile file('docker/Dockerfile')
+    name "wmp/${war.baseName}:${war.version}"
+    files war.archivePath
+    buildArgs(['WAR_FILE': "${war.archiveName}"])
+    noCache true
+}
+
+test {
+    outputs.dir snippetsDir
+}
+
+asciidoctor {
+	dependsOn test
+	inputs.dir snippetsDir
+	backends = ['html5','pdf']
+	outputDir = file('api-docs')
+	attributes 'snippets': "${snippetsDir}",
+            'source-highlighter': 'coderay',
+            'pdf-style': 'themes/KaiGenGothicKR-theme.yml',
+            'pdf-fontsdir': 'fonts'
+}
+
+//task stubsJar(type: Jar) {
+//    classifier = "stubs"
+//    into("META-INF/${project.group}/${project.name}/${project.version}/mappings") {
+//        include('**/*.*')
+//        from("${snippetsDir}/stubs")
+//    }
+//}
+//
+//stubsJar.dependsOn(test)
+//
+//artifacts {
+//    archives stubsJar
+//}

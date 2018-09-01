@@ -1,0 +1,20 @@
+[[showcase-dummy-get]]
+== 쇼케이스 GET 더미 요청
+
+GET 쇼케이스란 말이다.
+
+[[showcase-dummy-get-request-parameters]]
+=== 요청 파라메터
+include::{snippets}/showcase-dummy-get/request-parameters.adoc[]
+
+[[showcase-dummy-get-request-example]]
+=== 요청 예제
+include::{snippets}/showcase-dummy-get/http-request.adoc[]
+
+[[showcase-dummy-get-response-fields]]
+=== 응답 형식
+include::{snippets}/showcase-dummy-get/response-fields.adoc[]
+
+[[showcase-dummy-get-response-body]]
+=== 응답 예제
+include::{snippets}/showcase-dummy-get/response-body.adoc[]

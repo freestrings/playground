@@ -1,0 +1,20 @@
+[[showcase-echo-get]]
+== 쇼케이스 GET Echo 요청
+
+GET 쇼케이스란 말이다.
+
+[[showcase-echo-get-path-parameters]]
+=== 요청 파라메터
+include::{snippets}/showcase-echo-get/path-parameters.adoc[]
+
+[[showcase-echo-get-request-example]]
+=== 요청 예제
+include::{snippets}/showcase-echo-get/http-request.adoc[]
+
+[[showcase-echo-get-response-fields]]
+=== 응답 형식
+include::{snippets}/showcase-echo-get/response-fields.adoc[]
+
+[[showcase-echo-get-response-body]]
+=== 응답 예제
+include::{snippets}/showcase-echo-get/response-body.adoc[]

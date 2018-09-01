@@ -1,0 +1,7 @@
+zuul:
+  routes:
+    echo:
+      path: /echo/**
+      sensitiveHeaders:
+      url: http://localhost:5678
+      stripPrefix: true
