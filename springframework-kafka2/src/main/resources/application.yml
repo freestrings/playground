@@ -1,0 +1,6 @@
+kafka:
+  bootstrap-servers: localhost:9092
+  topic:
+    request-topic: request-topic
+    requestreply-topic: requestreply-topic
+  consumergroup: requestreplygorup
