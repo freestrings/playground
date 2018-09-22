@@ -1,0 +1,42 @@
+version: '3'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:5.0.0
+    hostname: zookeeper
+    ports:
+    - '32181:32181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_TICK_TIME: 2000
+  kafka:
+    image: confluentinc/cp-enterprise-kafka:5.0.0
+    hostname: kafka
+    ports:
+    - '9092:9092'
+    - '29092:29092'
+    depends_on:
+    - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:32181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  kafka-create-topics:
+    image: confluentinc/cp-kafka:5.0.0
+    depends_on:
+    - kafka
+    hostname: kafka-create-topics
+    command: "bash -c 'echo Waiting for Kafka to be ready... && \
+                         cub kafka-ready -b kafka:29092 1 20 && \
+                         kafka-topics --create --topic streams-wordcount-input --if-not-exists --zookeeper zookeeper:32181 --partitions 4 --replication-factor 1 && \
+                         kafka-topics --create --topic streams-wordcount-output --if-not-exists --zookeeper zookeeper:32181 --partitions 4 --replication-factor 1 && \
+                         sleep infinity'"
+    environment:
+      # The following settings are listed here only to satisfy the image's requirements.
+      # We override the image's `command` anyways, hence this container will not start a broker.
+      KAFKA_BROKER_ID: ignored
+      KAFKA_ZOOKEEPER_CONNECT: ignored
