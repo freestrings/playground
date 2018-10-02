@@ -14,7 +14,16 @@ import java.util.concurrent.CountDownLatch
 
 /**
  * 1. docker-compose up
- * 2. docker-compose exec kafka kafka-console-producer --broker-list localhost:9092 --topic streams-wordcount-input
+ * 2. 프로듀서 시작
+    docker run --rm -it \
+        --link springframework-kafkastream_kafka1_1:kafka1 \
+        --link springframework-kafkastream_kafka2_1:kafka2 \
+        --link springframework-kafkastream_kafka3_1:kafka3 \
+        --network springframework-kafkastream_default \
+        confluentinc/cp-kafka:5.0.0 \
+        kafka-console-producer \
+        --broker-list kafka1:29091,kafka2:29092,kafka3:29093 \
+        --topic streams-wordcount-input
  * 3. ./gradlew clean build
  * 4. java -jar build/libs/springframework-kafkastream-0.0.1-SNAPSHOT.jar input|output|readAllTopic <topic name>
  */
@@ -37,7 +46,7 @@ fun main(args: Array<String>) {
 private fun input() {
     val props = Properties()
     props[StreamsConfig.APPLICATION_ID_CONFIG] = "streams-wordcount"
-    props[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
+    props[StreamsConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9091,localhost:9092,localhost:9093"
     props[StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG] = 0
     props[StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG] = Serdes.String()::class.java.name
     props[StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG] = Serdes.String()::class.java.name
@@ -80,7 +89,7 @@ private fun input() {
 
 private fun output() {
     val prop = Properties()
-    prop[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
+    prop[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9091,localhost:9092,localhost:9093"
     prop[ConsumerConfig.GROUP_ID_CONFIG] = "wordcount-output-group"
     prop[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = Serdes.String().deserializer()::class.java.name
     prop[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = Serdes.Long().deserializer()::class.java.name
@@ -115,7 +124,7 @@ private fun output() {
  */
 private fun readAllTopic(topic: String) {
     val prop = Properties()
-    prop[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
+    prop[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9091,localhost:9092,localhost:9093"
     prop[ConsumerConfig.GROUP_ID_CONFIG] = UUID.randomUUID().toString()
     prop[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
     prop[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = Serdes.String().deserializer()::class.java.name
