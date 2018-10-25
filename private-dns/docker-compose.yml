@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  dnsmasq:
+    image: andyshinn/dnsmasq:latest
+    cap_add:
+      - NET_ADMIN
+    command: "--address=/.test/172.16.0.11"
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.10
+    # volumes:
+    #   - ./dnsmasq.conf:/etc/dnsmasq.conf
+  www:
+    image: python:latest
+    volumes:
+      - ./index.html:/index.html:ro
+    command: "python -m http.server 80"
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.11
+  nginx:
+    image: nginx:latest
+    volumes:
+      - "./nginx.conf:/etc/nginx/nginx.conf"
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.12
+    ports:
+      - "8081:80"
+networks:
+  static-network:
+    ipam:
+      config:
+        - subnet: 172.16.0.0/16
