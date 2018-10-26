@@ -5,29 +5,32 @@ services:
     image: andyshinn/dnsmasq:latest
     cap_add:
       - NET_ADMIN
-    command: "--address=/.test/172.16.0.11"
+    command: "--no-daemon --log-queries"
     networks:
       static-network:
-        ipv4_address: 172.16.0.10
-    # volumes:
-    #   - ./dnsmasq.conf:/etc/dnsmasq.conf
-  www:
-    image: python:latest
+        ipv4_address: 172.16.0.53
     volumes:
-      - ./index.html:/index.html:ro
-    command: "python -m http.server 80"
-    networks:
-      static-network:
-        ipv4_address: 172.16.0.11
-  nginx:
-    image: nginx:latest
-    volumes:
-      - "./nginx.conf:/etc/nginx/nginx.conf"
-    networks:
-      static-network:
-        ipv4_address: 172.16.0.12
+      - ./dnsmasq.conf:/etc/dnsmasq.conf
+      - ./dnsmasq.hosts:/etc/dnsmasq.hosts
+  squid:
+    image: sameersbn/squid:3.5.27
     ports:
-      - "8081:80"
+      - "3128:3128"
+    volumes:
+      - "/srv/docker/squid/cache:/var/spool/squid"
+      - "./squid.conf:/etc/squid/squid.conf"
+    dns:
+      - 172.16.0.53
+    depends_on:
+      - "wait-for-dnsmasq"
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.2
+  wait-for-dnsmasq:
+    image: busybox
+    volumes:
+      - "./wait-for-it.sh:/wait-for-it.sh"
+    command: ["/wait-for-it.sh", "dnsmasq:53"]
 networks:
   static-network:
     ipam:
