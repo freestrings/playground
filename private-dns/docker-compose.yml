@@ -2,6 +2,7 @@ version: '3'
 
 services:
   dnsmasq:
+    hostname: dnsmasq
     image: andyshinn/dnsmasq:latest
     cap_add:
       - NET_ADMIN
@@ -10,15 +11,16 @@ services:
       static-network:
         ipv4_address: 172.16.0.53
     volumes:
-      - ./dnsmasq.conf:/etc/dnsmasq.conf
-      - ./dnsmasq.hosts:/etc/dnsmasq.hosts
+      - ./dnsmasq/dnsmasq.conf:/etc/dnsmasq.conf
+      - ./dnsmasq/dnsmasq.hosts:/etc/dnsmasq.hosts
   squid:
+    hostname: squid
     image: sameersbn/squid:3.5.27
     ports:
       - "3128:3128"
     volumes:
-      - "./squid/cache:/var/spool/squid"
-      - "./squid.conf:/etc/squid/squid.conf"
+      - "./.squid:/var/spool/squid"
+      - "./squid/squid.conf:/etc/squid/squid.conf"
     dns:
       - 172.16.0.53
     depends_on:
@@ -26,11 +28,69 @@ services:
     networks:
       static-network:
         ipv4_address: 172.16.0.2
+  mysql:
+    hostname: mysql
+    image: mysql:5.7.24
+    ports:
+      - 3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - ./mysql/sql/init.sql:/sql/init.sql
+      - ./mysql/sql/openfire_mysql.sql:/sql/openfire-mysql.sql
+      - ./mysql/sql/dump.sql:/sql/dump.sql
+      - ./mysql/sql/update.sql:/sql/update.sql
+      - ./mysql/mysql-init.sh:/docker-entrypoint-initdb.d/mysql-init.sh
+      - ./mysql/mysql-additional.cnf:/etc/mysql/conf.d/mysql-additional.cnf
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.10
+  openfire:
+    hostname: openfire
+    image: freestrings/openfire:4.2
+    ports:
+      - 9090
+      - 9091
+      - 3478
+      - 3479 
+      - 5222
+      - 5223
+      - 5229
+      - 5275
+      - 5276
+      - 5262
+      - 5263
+      - 7070
+      - 7443
+      - 7777
+    volumes:
+      - ./openfire/openfire.xml:/var/lib/openfire/conf/openfire.xml
+      - ./openfire/wait-for-entrypoint.sh:/sbin/wait-for-entrypoint.sh
+    command: ['/sbin/wait-for-entrypoint.sh', '/sbin/entrypoint.sh']
+    depends_on:
+      - wait-for-mysql
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.20
   wait-for-dnsmasq:
-    image: busybox
+    image: bash
     volumes:
       - "./wait-for-it.sh:/wait-for-it.sh"
     command: ["/wait-for-it.sh", "dnsmasq:53"]
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.200
+  wait-for-mysql:
+    build: 
+      context: ./wait-for-mysql
+    volumes:
+      - ./wait-for-mysql/wait.sh:/wait.sh
+    command: '/wait.sh'
+    depends_on:
+      - mysql
+    networks:
+      static-network:
+        ipv4_address: 172.16.0.201
 networks:
   static-network:
     ipam:

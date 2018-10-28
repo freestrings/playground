@@ -1,0 +1,2 @@
+insert into ofProperty (name, propValue) values ('database.defaultProvider.serverURL', 'jdbc:mysql://mysql:3306/db?rewriteBatchedStatements=true') on duplicate key update propValue='jdbc:mysql://mysql:3306/db?rewriteBatchedStatements=true';
+update ofProperty set propValue='jdbc:mysql://mysql:3306/db?rewriteBatchedStatements=true' where name='database.defaultProvider.serverURL';
