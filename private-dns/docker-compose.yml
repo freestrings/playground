@@ -17,7 +17,7 @@ services:
     ports:
       - "3128:3128"
     volumes:
-      - "/srv/docker/squid/cache:/var/spool/squid"
+      - "./squid/cache:/var/spool/squid"
       - "./squid.conf:/etc/squid/squid.conf"
     dns:
       - 172.16.0.53
