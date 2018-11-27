@@ -1,0 +1,6 @@
+[package]
+name = "rust-de-ref-impl"
+version = "0.1.0"
+authors = ["freestrings <freestrings@gmail.com>"]
+
+[dependencies]
