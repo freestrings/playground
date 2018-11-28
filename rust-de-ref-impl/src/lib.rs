@@ -31,5 +31,6 @@ mod tests {
     #[test]
     fn deserialize() {
         let deserialize = json_de::Deserializer::from_slice("12345\n67890".as_bytes());
+        deserialize.into_iter::<json_de::value::Value>();
     }
 }

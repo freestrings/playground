@@ -1,7 +1,8 @@
-mod stream_de;
-
-use read;
 use de;
+use read;
+
+pub mod stream_de;
+pub mod value;
 
 pub struct Deserializer<R> {
     read: R
@@ -21,7 +22,7 @@ impl<R> Deserializer<R>
         where
             T: de::Deserialize
     {
-        stream_de::StreamDeserializer::new(self)
+        stream_de::StreamDeserializer::new(self.read)
     }
 
     fn parse_whitespace(&mut self) -> read::Result<Option<u8>> {
@@ -42,9 +43,30 @@ impl<R> Deserializer<R>
 /// Read 서브 타입중 SliceRead에 대한 구현
 ///
 impl<'a> Deserializer<read::slice_read::SliceRead<'a>> {
-
     pub fn from_slice(bytes: &'a [u8]) -> Self {
         Deserializer::new(read::slice_read::SliceRead::new(bytes))
     }
+}
 
+impl<'a, R: read::Read> de::Deserializer for &'a mut Deserializer<R> {
+    fn deserialize_bool<V>(self, visitor: V) -> de::Result<V::Value>
+        where
+            V: de::Visitor
+    {
+        unimplemented!()
+    }
+
+    fn deserialize_i32<V>(self, visitor: V) -> de::Result<V::Value>
+        where
+            V: de::Visitor
+    {
+        unimplemented!()
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> de::Result<V::Value>
+        where
+            V: de::Visitor
+    {
+        unimplemented!()
+    }
 }

@@ -1,18 +1,23 @@
-use de;
-use read;
 use std::marker::PhantomData;
 
+use de;
+use json_de;
+use read;
+
 pub struct StreamDeserializer<R, T> {
-    de: super::Deserializer<R>,
+    de: json_de::Deserializer<R>,
     output: PhantomData<T>,
 }
 
-impl<R, T> StreamDeserializer<R, T> {
-
-    pub fn new(de: super::Deserializer<R>) -> Self {
+impl<R, T> StreamDeserializer<R, T>
+    where
+        R: read::Read,
+        T: de::Deserialize
+{
+    pub fn new(read: R) -> Self {
         StreamDeserializer {
-            de,
-            output: PhantomData
+            de: json_de::Deserializer::new(read),
+            output: PhantomData,
         }
     }
 }
@@ -26,12 +31,13 @@ impl<R, T> Iterator for StreamDeserializer<R, T>
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.de.parse_whitespace() {
-            Ok(None) => {
-                None
-            }
+            Ok(None) => None,
             Ok(Some(b)) => {
-                // Here!
-                None
+                let result = T::deserialize(&mut self.de);
+                Some(match result {
+                    Ok(value) => Ok(value),
+                    Err(e) => Err(read::Error {}),
+                })
             }
             Err(e) => Some(Err(e))
         }
