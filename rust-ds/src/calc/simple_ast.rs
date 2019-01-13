@@ -1,8 +1,8 @@
-// https://ruslanspivak.com/lsbasi-part6/
+// https://ruslanspivak.com/lsbasi-part7/
 
 use std::result;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum TokenType {
     Numeric,
     Plus,
@@ -14,9 +14,9 @@ enum TokenType {
     Eof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Token {
-    token: TokenType,
+    ttype: TokenType,
     value: String,
 }
 
@@ -27,19 +27,12 @@ pub enum Error {
 }
 
 pub struct Reader<'a> {
-    input: &'a str,
-    pos: usize,
-    len: usize,
+    input: &'a str
 }
 
 impl<'a> Reader<'a> {
     pub fn new(input: &'a str) -> Self {
-        let len = input.chars().by_ref().map(|c| c.len_utf8()).sum();
-        Reader {
-            input,
-            pos: 0,
-            len,
-        }
+        Reader { input }
     }
 
     pub fn peek_char(&mut self) -> result::Result<char, Error> {
@@ -50,9 +43,7 @@ impl<'a> Reader<'a> {
     pub fn next_char(&mut self) -> result::Result<char, Error> {
         let ch = self.peek_char()?;
         self.input = &self.input[ch.len_utf8()..];
-        let ret = Ok(ch);
-        self.pos += ch.len_utf8();
-        ret
+        Ok(ch)
     }
 }
 
@@ -88,7 +79,7 @@ impl<'a> Lexer<'a> {
             }
 
             if ch.is_numeric() {
-                return Token { token: TokenType::Numeric, value: self.numeric(ch) };
+                return Token { ttype: TokenType::Numeric, value: self.numeric(ch) };
             }
 
             let token_type = match ch {
@@ -101,39 +92,50 @@ impl<'a> Lexer<'a> {
                 _ => panic!("Invalid character")
             };
 
-            return Token { token: token_type, value: ch.to_string() };
+            return Token { ttype: token_type, value: ch.to_string() };
         };
 
-        Token { token: TokenType::Eof, value: String::new() }
+        Token { ttype: TokenType::Eof, value: String::new() }
     }
 }
 
-struct Interpreter<'a> {
+#[derive(Debug)]
+struct Node {
+    left: Option<Box<Node>>,
+    right: Option<Box<Node>>,
+    token: Token,
+}
+
+struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
 }
 
-impl<'a> Interpreter<'a> {
+impl<'a> Parser<'a> {
     fn new(text: &'a str) -> Self {
         let mut lexer = Lexer::new(text);
         let current_token = lexer.next_token();
-        Interpreter { lexer: lexer, current_token: current_token }
+        Parser { lexer: lexer, current_token: current_token }
     }
 
     fn eat(&mut self, token_type: TokenType) {
-        if self.current_token.token == token_type {
+        if self.current_token.ttype == token_type {
             self.current_token = self.lexer.next_token();
         } else {
             panic!("Invalid syntax");
         }
     }
 
-    fn factor(&mut self) -> isize {
-        if self.current_token.token == TokenType::Numeric {
-            let ret = self.current_token.value.parse::<isize>().unwrap();
+    fn factor(&mut self) -> Node {
+        let current_token = self.current_token.clone();
+        if current_token.ttype == TokenType::Numeric {
             self.eat(TokenType::Numeric);
-            return ret;
-        } else if self.current_token.token == TokenType::LParen {
+            return Node {
+                left: None,
+                right: None,
+                token: current_token,
+            };
+        } else if current_token.ttype == TokenType::LParen {
             self.eat(TokenType::LParen);
             let ret = self.expr();
             self.eat(TokenType::RParen);
@@ -142,44 +144,92 @@ impl<'a> Interpreter<'a> {
         unreachable!()
     }
 
-    fn term(&mut self) -> isize {
+    fn term(&mut self) -> Node {
         let mut ret = self.factor();
         loop {
-            if self.current_token.token == TokenType::Mul {
+            let current_token = self.current_token.clone();
+            if current_token.ttype == TokenType::Mul {
                 self.eat(TokenType::Mul);
-                ret = ret * self.factor();
-            } else if self.current_token.token == TokenType::Div {
+            } else if current_token.ttype == TokenType::Div {
                 self.eat(TokenType::Div);
-                ret = ret / self.factor();
             } else {
                 break;
             }
+
+            ret = Node {
+                left: Some(Box::new(ret)),
+                right: Some(Box::new(self.factor())),
+                token: current_token,
+            };
         }
         ret
     }
 
-    fn expr(&mut self) -> isize {
+    fn expr(&mut self) -> Node {
         let mut ret = self.term();
-
         loop {
-            if self.current_token.token == TokenType::Plus {
+            let current_token = self.current_token.clone();
+            if current_token.ttype == TokenType::Plus {
                 self.eat(TokenType::Plus);
-                ret = ret + self.term();
-            } else if self.current_token.token == TokenType::Minus {
+            } else if current_token.ttype == TokenType::Minus {
                 self.eat(TokenType::Minus);
-                ret = ret - self.term();
             } else {
                 break;
             }
-        }
 
+            ret = Node {
+                left: Some(Box::new(ret)),
+                right: Some(Box::new(self.term())),
+                token: current_token,
+            };
+        }
         return ret;
     }
 
-    fn interpret(&mut self) -> isize {
+    fn parse(&mut self) -> Node {
         self.expr()
     }
 }
+
+
+trait NodeVisitor {
+    fn visit(&self, node: Node) -> isize {
+        match node.token.ttype {
+            TokenType::Numeric => node.token.value.parse::<isize>().unwrap(),
+            TokenType::Minus => {
+                self.visit(*node.left.unwrap()) - self.visit(*node.right.unwrap())
+            }
+            TokenType::Plus => {
+                self.visit(*node.left.unwrap()) + self.visit(*node.right.unwrap())
+            }
+            TokenType::Div => {
+                self.visit(*node.left.unwrap()) / self.visit(*node.right.unwrap())
+            }
+            TokenType::Mul => {
+                self.visit(*node.left.unwrap()) * self.visit(*node.right.unwrap())
+            }
+            _ => unreachable!()
+        }
+    }
+}
+
+struct Interpreter<'a> {
+    input: &'a str
+}
+
+impl<'a> Interpreter<'a> {
+    fn new(input: &'a str) -> Self {
+        Interpreter { input }
+    }
+
+    fn interpret(&mut self) -> isize {
+        let mut parser = Parser::new(self.input);
+        let node = parser.parse();
+        self.visit(node)
+    }
+}
+
+impl<'a> NodeVisitor for Interpreter<'a> {}
 
 #[cfg(test)]
 mod tests {
@@ -187,12 +237,12 @@ mod tests {
 
     #[test]
     fn calc1() {
-        let mut interpret = Interpreter::new("1 + 2");
-        let ret = interpret.interpret();
+        let mut interpreter = Interpreter::new("1 + 2");
+        let ret = interpreter.interpret();
         assert_eq!(ret, 3);
 
-        let mut interpret = Interpreter::new("11 + 22");
-        let ret = interpret.interpret();
+        let mut interpreter = Interpreter::new("11 + 22");
+        let ret = interpreter.interpret();
         assert_eq!(ret, 33);
     }
 
