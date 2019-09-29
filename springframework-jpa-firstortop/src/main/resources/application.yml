@@ -1,0 +1,33 @@
+spring.jpa:
+  hibernate.ddl-auto: update
+  properties.hibernate:
+    show_sql: true
+    format_sql: true
+    use_sql_comments: true
+
+logging.level.org.hibernate.type.descriptor.sql: trace
+
+---
+spring.profiles: h2
+
+---
+spring.profiles: mysql
+spring:
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
+  datasource:
+    url: jdbc:mysql://localhost:3306/testa?useSSL=false
+    username: user
+    password: 1111
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+---
+spring.profiles: oracle
+spring:
+  jpa:
+    database-platform: org.hibernate.dialect.Oracle10gDialect
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521:xe
+    username: system
+    password: oracle
+    driver-class-name: oracle.jdbc.driver.OracleDriver
