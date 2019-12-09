@@ -17,7 +17,7 @@ import java.util.function.Function;
 
 public class MonoApis {
 
-    static Logger log = LoggerFactory.getLogger(ReactorApplication.class);
+    static Logger log = LoggerFactory.getLogger(MonoApis.class);
     String a = "a";
 
     <T> void processSink(MonoSink<T> sink, T value, int delay) {
@@ -69,8 +69,11 @@ public class MonoApis {
     }
 
     void block() {
-        log.info(mono("a", 3000, true).block());
-        log.info(mono("b", 3000, true).block());
+        mono("a", 3000, true).subscribe(log::info);
+        mono("b", 3000, true).subscribe(log::info);
+
+        log.info(mono("c", 3000, true).block());
+        log.info(mono("d", 3000, true).block());
     }
 
     void cache() {

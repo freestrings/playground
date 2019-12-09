@@ -51,7 +51,13 @@ public class ReactorApplication {
 //        monoApis.sequenceEqual();
 //        monoApis.tag();
 //        monoApis.then();
-        monoApis.zip();
+//        monoApis.zip();
+
+        FluxApis fluxApis = new FluxApis();
+//        fluxApis.all();
+//        fluxApis.buffer();
+//        fluxApis.collect();
+        fluxApis.combineLatest();
     }
 
     @RestController
