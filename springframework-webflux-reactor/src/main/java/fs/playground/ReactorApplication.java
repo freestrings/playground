@@ -16,8 +16,8 @@ public class ReactorApplication {
 
     static Logger log = LoggerFactory.getLogger(ReactorApplication.class);
 
-    public static void main(String[] args) {
-//        SpringApplication.run(DemoApplication.class, args);
+    public static void main(String[] args) throws Exception {
+//        SpringApplication.run(ReactorApplication.class, args);
 
         MonoApis monoApis = new MonoApis();
 //        monoApis.monoAnd();
@@ -35,7 +35,23 @@ public class ReactorApplication {
 //        monoApis.doFirst();
 //        monoApis.doOnDiscard();
 //        monoApis.elapsed();
-        monoApis.expand();
+//        monoApis.expand();
+//        monoApis.first();
+//        monoApis.flatMap();
+//        monoApis.from();
+//        monoApis.fromCompletionStage();
+//        monoApis.handle();
+//        monoApis.mapAndFlatMap();
+//        monoApis.mergeWith();
+//        monoApis.onErrorContinue();
+//        monoApis.onErrorResume();
+//        monoApis.onErrorStop();
+//        monoApis.publish();
+//        monoApis.retry();
+//        monoApis.sequenceEqual();
+//        monoApis.tag();
+//        monoApis.then();
+        monoApis.zip();
     }
 
     @RestController
@@ -55,6 +71,21 @@ public class ReactorApplication {
                 }
             }
             return Mono.just(ResponseEntity.ok().body(new Resp<>(value)));
+        }
+
+        @GetMapping("/err")
+        public Mono<ResponseEntity> err(@RequestParam(value = "delay") int delay) {
+
+            log.info("http call err: {}, {}", delay);
+
+            if (delay > 0) {
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException e) {
+                }
+            }
+
+            return Mono.just(ResponseEntity.status(500).build());
         }
     }
 }
