@@ -57,7 +57,12 @@ public class ReactorApplication {
 //        fluxApis.all();
 //        fluxApis.buffer();
 //        fluxApis.collect();
-        fluxApis.combineLatest();
+//        fluxApis.combineLatest();
+//        fluxApis.concatMap();
+//        fluxApis.flatMap();
+//        fluxApis.limitRate();
+//        fluxApis.merge();
+        fluxApis.zip();
     }
 
     @RestController
