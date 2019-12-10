@@ -20,7 +20,7 @@ public class ReactorApplication {
 //        SpringApplication.run(ReactorApplication.class, args);
 
         MonoApis monoApis = new MonoApis();
-//        monoApis.monoAnd();
+//        monoApis.and();
 //        monoApis.block();
 //        monoApis.cache();
 //        monoApis.cancel();
@@ -52,6 +52,7 @@ public class ReactorApplication {
 //        monoApis.tag();
 //        monoApis.then();
 //        monoApis.zip();
+//        monoApis.switchIfEmpty();
 
         FluxApis fluxApis = new FluxApis();
 //        fluxApis.all();
@@ -62,7 +63,7 @@ public class ReactorApplication {
 //        fluxApis.flatMap();
 //        fluxApis.limitRate();
 //        fluxApis.merge();
-        fluxApis.zip();
+//        fluxApis.zip();
     }
 
     @RestController

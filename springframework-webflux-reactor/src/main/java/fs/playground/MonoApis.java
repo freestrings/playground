@@ -56,7 +56,7 @@ public class MonoApis {
         return Mono.create(isAsync ? asyncSink : syncSink).log();
     }
 
-    void monoAnd() {
+    void and() {
         mono("A", 30, false)
                 .and(mono("B", 10, false))
                 .and(mono("C", 10, false))
@@ -496,5 +496,12 @@ public class MonoApis {
         Mono.zip(Mono.just("a"), Mono.just("b"))
                 .subscribe(tuple -> log.info("{} : {}", tuple.getT1(), tuple.getT2()))
         ;
+    }
+
+    void switchIfEmpty() {
+        Mono.empty()
+                .log()
+                .switchIfEmpty(Mono.just("a"))
+                .subscribe(s -> log.info("{}", s));
     }
 }
