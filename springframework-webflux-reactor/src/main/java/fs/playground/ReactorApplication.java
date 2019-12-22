@@ -2,6 +2,7 @@ package fs.playground;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,10 +18,10 @@ public class ReactorApplication {
     static Logger log = LoggerFactory.getLogger(ReactorApplication.class);
 
     public static void main(String[] args) throws Exception {
-//        SpringApplication.run(ReactorApplication.class, args);
+        SpringApplication.run(ReactorApplication.class, args);
 
-        MonoApis monoApis = new MonoApis();
-//        monoApis.and();
+//        MonoApis monoApis = new MonoApis();
+//        monoApis.monoAnd();
 //        monoApis.block();
 //        monoApis.cache();
 //        monoApis.cancel();
@@ -52,38 +53,16 @@ public class ReactorApplication {
 //        monoApis.tag();
 //        monoApis.then();
 //        monoApis.zip();
-//        monoApis.switchIfEmpty();
 
-        FluxApis fluxApis = new FluxApis();
+//        FluxApis fluxApis = new FluxApis();
 //        fluxApis.all();
 //        fluxApis.buffer();
 //        fluxApis.collect();
 //        fluxApis.combineLatest();
-//        fluxApis.concatMap();
-//        fluxApis.flatMap();
-//        fluxApis.limitRate();
-//        fluxApis.merge();
-//        fluxApis.zip();
     }
 
     @RestController
     class Ctrls {
-
-        @GetMapping("/")
-        public <T> Mono<ResponseEntity<Resp<T>>> mono(
-                @RequestParam(value = "value") T value,
-                @RequestParam(value = "delay") int delay) {
-
-            log.info("http call mono: {}, {}", value, delay);
-
-            if (delay > 0) {
-                try {
-                    Thread.sleep(delay);
-                } catch (InterruptedException e) {
-                }
-            }
-            return Mono.just(ResponseEntity.ok().body(new Resp<>(value)));
-        }
 
         @GetMapping("/err")
         public Mono<ResponseEntity> err(@RequestParam(value = "delay") int delay) {
