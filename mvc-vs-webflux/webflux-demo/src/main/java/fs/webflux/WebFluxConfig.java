@@ -1,7 +1,10 @@
 package fs.webflux;
 
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.server.RouterFunction;
@@ -9,16 +12,25 @@ import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
+import reactor.netty.http.client.HttpClient;
 
-import java.util.function.Function;
+import java.util.concurrent.TimeUnit;
 
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 @Configuration
 public class WebFluxConfig {
 
+    private final HttpClient httpClient = HttpClient.create()
+            .tcpConfiguration(tcpClient -> {
+                return tcpClient
+                        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
+                        .doOnConnected(conn -> conn.addHandlerLast(new ReadTimeoutHandler(3000, TimeUnit.MILLISECONDS)));
+            });
+
     private final WebClient webClient = WebClient.builder()
             .baseUrl("http://delay:8080")
+            .clientConnector(new ReactorClientHttpConnector(httpClient))
             .build();
 
     @Bean
@@ -31,7 +43,7 @@ public class WebFluxConfig {
     }
 
     private Mono<ClientResponse> httpCall() {
-        return webClient.get().uri("/?delay=300&time=" + System.currentTimeMillis()).exchange();
+        return webClient.get().uri("/?delay=20000&time=" + System.currentTimeMillis()).exchange();
     }
 
     public Mono<ServerResponse> multi(ServerRequest request) {
