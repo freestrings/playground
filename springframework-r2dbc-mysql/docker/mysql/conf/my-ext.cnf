@@ -1,0 +1,7 @@
+[mysqld]
+log_error                       =/var/log/mysql/mysql_error.log
+general_log                     =1
+slow_query_log                  =1
+long_query_time                 =2
+log_queries_not_using_indexes   =1
+sql_mode="ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION"

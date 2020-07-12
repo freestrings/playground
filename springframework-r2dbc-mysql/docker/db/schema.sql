@@ -1,0 +1,12 @@
+DROP DATABASE IF EXISTS testdb;
+
+CREATE DATABASE testdb DEFAULT CHARSET utf8;
+
+USE testdb;
+
+DROP TABLE if EXISTS person;
+CREATE TABLE person (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  name char(1) DEFAULT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
