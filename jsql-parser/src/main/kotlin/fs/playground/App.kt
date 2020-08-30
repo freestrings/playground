@@ -16,7 +16,7 @@ import java.util.*
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     val tableMeta = loadTableMeta()
-    val sql = getSql12()
+    val sql = getSql13()
     log.debug(sql)
     val select = CCJSqlParserUtil.parse(sql) as Select
     val parseEventEmitter = ParseEventEmitter()
@@ -95,7 +95,7 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
                         return
                     }
                 } else {
-                    if (tables.size == 0) {
+                    if (tables.peek().size == 0) {
                         // from절이 sub select : ignore
                         return
                     }
@@ -113,6 +113,10 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
             }
             ParseEvent.Type.TABLE -> {
                 log.debug("-- table: ${e.data["name"]}, alias: ${e.data["alias"]}")
+                if (!tablesMeta.containsKey(e.data.getValue("name").toLowerCase())) {
+                    log.error("Unknown table: ${e.data["name"]}, alias: ${e.data["alias"]}")
+                    return
+                }
                 tables.peek().add(e.data)
             }
             ParseEvent.Type.NEW_CONTEXT -> {
@@ -204,7 +208,7 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
             plainSelect.joins?.let { joins ->
                 joins.forEach { join ->
                     join.rightItem.accept(SimpleFromItemVisitor(parseEventEmitter))
-                    join.onExpression?.let { it.accept(simpleExpressionVisitor) }
+//                    join.onExpression?.let { it.accept(simpleExpressionVisitor) }
                 }
             }
             plainSelect.distinct?.let { distinct ->
@@ -214,6 +218,12 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
                 selectItems.forEach { it.accept(simpleSelectItemVisitor) }
             }
             plainSelect.where?.let { it.accept(simpleExpressionVisitor) }
+            plainSelect.joins?.let { joins ->
+                joins.forEach { join ->
+//                    join.rightItem.accept(SimpleFromItemVisitor(parseEventEmitter))
+                    join.onExpression?.let { it.accept(simpleExpressionVisitor) }
+                }
+            }
         }
 
         parseEventEmitter.emit(
@@ -300,6 +310,9 @@ open class SimpleExpressionVisitor(
     }
 
     override fun visit(expr: EqualsTo?) {
+        if (expr!!.leftExpression is JdbcNamedParameter) {
+            println()
+        }
         expr?.let { it.leftExpression.accept(this) }
         expr?.let { it.rightExpression.accept(this) }
     }
@@ -524,7 +537,7 @@ fun getSql3(): String? {
         select * from 
             tab1 t1,
             tab2 t2 
-        where t1.a = (select min(c) from t3)
+        where t1.a = (select min(c) from tab2)
     """.trimIndent()
 }
 
@@ -548,18 +561,18 @@ fun getSql4(): String? {
         select * from 
             tab1 t1,
             tab2 t2 
-        where t1.a in (select a from t3) 
+        where t1.a in (select a from tab1) 
     """.trimIndent()
 }
 
 fun getSql5(): String? {
     return """
         select t1.*
-            , case when (select count(*) from t4) = 1 then 1 else 2 end 
+            , case when (select count(*) from tab1) = 1 then 1 else 2 end 
         from 
             tab1 t1,
             tab2 t2 
-        where t2.a = (case when (select count(*) from t3) = 1 then 1 else 2 end)
+        where t2.a = (case when (select count(*) from tab1) = 1 then 1 else 2 end)
     """.trimIndent()
 }
 
@@ -567,7 +580,7 @@ fun getSql6(): String? {
     return """
         select * from tab1 t1 
         where t1.a = to_char(
-                    (select count(a) from t2),
+                    (select count(a) from tab2),
                     ''
                 )
     """.trimIndent()
@@ -577,8 +590,8 @@ fun getSql7(): String? {
     return """
         select * from tab1 t1 
         where exists (
-            select a from t2
-            where t2.a = (select count(*) from t3)
+            select a from tab2
+            where t2.a = (select count(f) from tab3)
         )
     """.trimIndent()
 }
@@ -586,7 +599,7 @@ fun getSql7(): String? {
 fun getSql8(): String? {
     return """
         select * from tab1 t1 
-        where t1.a like a || b || (select a from t2)
+        where t1.a like b || c || (select a from tab2)
     """.trimIndent()
 }
 
@@ -594,7 +607,7 @@ fun getSql9(): String? {
     return """
         select * from tab1 t1 
         where t1.a = cast(:a as unsinged)
-            and t1.b = cast( (select a from t2) as unsigned )
+            and t1.b = cast( (select a from tab2) as unsigned )
     """.trimIndent()
 }
 
@@ -623,6 +636,21 @@ fun getSql12(): String? {
                         from tab3
                             inner join tab1 tt1 on tt1.a = f  
                         where f = 1 and g = 2)
+            and t2.c = :bind2
+    """.trimIndent()
+}
+
+fun getSql13(): String? {
+    return """
+        select a from tab1 t1,
+            tab2 t2
+        where :bind1 = (
+                        select 
+                            e 
+                        from tab3,
+                            tab1 tt1,
+                            tab2 tt2
+                        where tt1.a = f and f = 1 and g = 2)
             and t2.c = :bind2
     """.trimIndent()
 }
