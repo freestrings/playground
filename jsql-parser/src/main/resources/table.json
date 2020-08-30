@@ -1,23 +1,41 @@
 {
-  "tab1" : {
-    "columns" : [
-      { "name":  "a" },
-      { "name":  "b" },
-      { "name":  "c" }
+  "tab1": {
+    "columns": [
+      {
+        "name": "a"
+      },
+      {
+        "name": "b"
+      },
+      {
+        "name": "c"
+      }
     ]
   },
-  "tab2" : {
-    "columns" : [
-      { "name":  "a" },
-      { "name":  "b" },
-      { "name":  "c" }
+  "tab2": {
+    "columns": [
+      {
+        "name": "a"
+      },
+      {
+        "name": "b"
+      },
+      {
+        "name": "c"
+      }
     ]
   },
-  "tab3" : {
-    "columns" : [
-      { "name":  "e" },
-      { "name":  "f" },
-      { "name":  "g" }
+  "tab3": {
+    "columns": [
+      {
+        "name": "e"
+      },
+      {
+        "name": "f"
+      },
+      {
+        "name": "g"
+      }
     ]
   }
 }

@@ -1,0 +1,22 @@
+{
+  "__description__": "default query is 'select distinct :column from :table'",
+  "tab1": {
+    "columns": [
+      {
+        "name": "a",
+        "value": "select distinct :column from :table where :b is null",
+        "type": "sql"
+      },
+      {
+        "name": "b",
+        "value": "a,b,c",
+        "type": "list"
+      },
+      {
+        "name": "c",
+        "value": "a",
+        "type": "const"
+      }
+    ]
+  }
+}
