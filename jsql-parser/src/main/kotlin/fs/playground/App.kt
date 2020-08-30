@@ -16,7 +16,7 @@ import java.util.*
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     val tableMeta = loadTableMeta()
-    val sql = getSql13()
+    val sql = getSql16()
     log.debug(sql)
     val select = CCJSqlParserUtil.parse(sql) as Select
     val parseEventEmitter = ParseEventEmitter()
@@ -50,6 +50,9 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
 
     private val columns = Stack<MutableList<Map<String, String>>>()
     private val tables = Stack<MutableList<Map<String, String>>>()
+    private var bindVariables = Stack<MutableList<String>>()
+    private var bindContextes = Stack<MutableMap<String, MutableList<String>>>()
+    private var bindColumnsOrdered = Stack<MutableList<Pair<String, String>>>()
 
     override fun onEvent(e: ParseEvent) {
         log.debug("## $e")
@@ -92,7 +95,8 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
 
                     if (!isColumnExist(tableCandidates[0], columnName, tablesMeta)) {
                         log.error("Unknown column: $columnName of ${tableCandidates[0]}")
-                        return
+                    } else if (bindContextes.isNotEmpty()) {
+                        keepBindContext(tableCandidates[0], columnName)
                     }
                 } else {
                     if (tables.peek().size == 0) {
@@ -103,7 +107,11 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
                     if (tables.peek()
                             .filter { table ->
                                 val tableName = table["name"] as String
-                                isColumnExist(tableName, columnName, tablesMeta)
+                                val exist = isColumnExist(tableName, columnName, tablesMeta)
+                                if (exist && bindContextes.isNotEmpty()) {
+                                    keepBindContext(tableName, columnName)
+                                }
+                                exist
                             }.count() < 1
                     ) {
                         log.error("Unknown column: $columnName in ${tables.peek().map { it["name"] as String }} ")
@@ -128,10 +136,44 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
                 tables.pop()
             }
             ParseEvent.Type.BIND_VARIABLE -> {
+                if (bindVariables.isNotEmpty()) {
+                    bindVariables.peek().add(e.data.getValue("name"))
+                } else {
+                    println()
+                }
+            }
+            ParseEvent.Type.NEW_BIND -> {
+                bindVariables.push(mutableListOf())
+                bindContextes.push(mutableMapOf())
+                bindColumnsOrdered.push(mutableListOf())
+            }
+            ParseEvent.Type.END_BIND -> {
+                val bindVariable = bindVariables.pop()
+                val bindContext = bindContextes.pop()
+                val bindColumnOrdered = bindColumnsOrdered.pop()
+
+                for (i in 0 until bindVariable.size) {
+                    try {
+                        val bindColumn = bindColumnOrdered[i]
+                        val column = bindContext.getValue(bindColumn.first)[0]
+                        log.info("${bindVariable[i]} : $column of ${bindColumn.first}")
+                    } catch (e: IndexOutOfBoundsException) {
+                        log.info("${bindVariable[i]} : Unknown column")
+                    }
+                }
             }
             ParseEvent.Type.TRACE -> {
                 log.trace("----$e")
             }
+        }
+    }
+
+    private fun keepBindContext(tableName: String, columnName: String) {
+        bindColumnsOrdered.peek().add(Pair(tableName, columnName))
+        if (bindContextes.peek().containsKey(tableName)) {
+            bindContextes.peek().getValue(tableName).add(columnName)
+        } else {
+            bindContextes.peek()[tableName] = mutableListOf(columnName)
         }
     }
 
@@ -144,7 +186,9 @@ data class ParseEvent(val event: Type, val data: Map<String, String>) {
         TRACE,
         TABLE,
         NEW_CONTEXT,
-        END_CONTEXT
+        END_CONTEXT,
+        NEW_BIND,
+        END_BIND
     }
 }
 
@@ -208,7 +252,6 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
             plainSelect.joins?.let { joins ->
                 joins.forEach { join ->
                     join.rightItem.accept(SimpleFromItemVisitor(parseEventEmitter))
-//                    join.onExpression?.let { it.accept(simpleExpressionVisitor) }
                 }
             }
             plainSelect.distinct?.let { distinct ->
@@ -220,7 +263,6 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
             plainSelect.where?.let { it.accept(simpleExpressionVisitor) }
             plainSelect.joins?.let { joins ->
                 joins.forEach { join ->
-//                    join.rightItem.accept(SimpleFromItemVisitor(parseEventEmitter))
                     join.onExpression?.let { it.accept(simpleExpressionVisitor) }
                 }
             }
@@ -291,10 +333,21 @@ open class SimpleExpressionVisitor(
     override fun visit(function: Function?) {
         function?.let { function ->
             function.parameters?.let { expressionList ->
-                expressionList.expressions?.let { expression ->
-                    expression.forEach {
+                val hasBindVariable = expressionList.expressions?.let { expressions ->
+                    expressions.filterIsInstance<JdbcNamedParameter>()
+                }?.let { it.count() > 0 } ?: false
+
+                if (hasBindVariable) {
+                    parseEventEmitter.emit(ParseEvent(ParseEvent.Type.NEW_BIND, mapOf()))
+                }
+                expressionList.expressions?.let { expressions ->
+                    expressions.forEach {
                         it.accept(this)
                     }
+                }
+
+                if (hasBindVariable) {
+                    parseEventEmitter.emit(ParseEvent(ParseEvent.Type.END_BIND, mapOf()))
                 }
             }
         }
@@ -309,45 +362,61 @@ open class SimpleExpressionVisitor(
         )
     }
 
-    override fun visit(expr: EqualsTo?) {
-        if (expr!!.leftExpression is JdbcNamedParameter) {
-            println()
+    private fun acceptExpr(expr: BinaryExpression?) {
+        expr?.let {
+            if (it.leftExpression is JdbcNamedParameter || it.rightExpression is JdbcNamedParameter) {
+                parseEventEmitter.emit(ParseEvent(ParseEvent.Type.NEW_BIND, mapOf()))
+            }
+
+            it.leftExpression.accept(this)
+            it.rightExpression.accept(this)
+
+            if (it.leftExpression is JdbcNamedParameter || it.rightExpression is JdbcNamedParameter) {
+                parseEventEmitter.emit(ParseEvent(ParseEvent.Type.END_BIND, mapOf()))
+            }
         }
-        expr?.let { it.leftExpression.accept(this) }
-        expr?.let { it.rightExpression.accept(this) }
-    }
-
-    override fun visit(expr: GreaterThan?) {
-        expr?.let { it.leftExpression.accept(this) }
-        expr?.let { it.rightExpression.accept(this) }
-    }
-
-    override fun visit(expr: GreaterThanEquals?) {
-        expr?.let { it.leftExpression.accept(this) }
-        expr?.let { it.rightExpression.accept(this) }
     }
 
     override fun visit(expr: InExpression?) {
-        expr?.let { it.rightItemsList.accept(this) }
+        expr?.let {
+            if (it.leftExpression is JdbcNamedParameter) {
+                parseEventEmitter.emit(ParseEvent(ParseEvent.Type.NEW_BIND, mapOf()))
+            }
+
+            it.leftExpression.accept(this)
+
+            if (it.leftExpression is JdbcNamedParameter) {
+                parseEventEmitter.emit(ParseEvent(ParseEvent.Type.END_BIND, mapOf()))
+            }
+        }
+    }
+
+    override fun visit(expr: EqualsTo?) {
+        acceptExpr(expr)
+    }
+
+    override fun visit(expr: GreaterThan?) {
+        acceptExpr(expr)
+    }
+
+    override fun visit(expr: GreaterThanEquals?) {
+        acceptExpr(expr)
     }
 
     override fun visit(expr: LikeExpression?) {
-        expr?.let { it.rightExpression.accept(this) }
+        acceptExpr(expr)
     }
 
     override fun visit(expr: MinorThan?) {
-        expr?.let { it.leftExpression.accept(this) }
-        expr?.let { it.rightExpression.accept(this) }
+        acceptExpr(expr)
     }
 
     override fun visit(expr: MinorThanEquals?) {
-        expr?.let { it.leftExpression.accept(this) }
-        expr?.let { it.rightExpression.accept(this) }
+        acceptExpr(expr)
     }
 
     override fun visit(expr: NotEqualsTo?) {
-        expr?.let { it.leftExpression.accept(this) }
-        expr?.let { it.rightExpression.accept(this) }
+        acceptExpr(expr)
     }
 
     override fun visit(subSelect: SubSelect?) {
@@ -650,7 +719,56 @@ fun getSql13(): String? {
                         from tab3,
                             tab1 tt1,
                             tab2 tt2
-                        where tt1.a = f and f = 1 and g = 2)
+                        where tt1.a = :bind2 and f = :bind3 and g = 2)
+            and t2.c = :bind4
+    """.trimIndent()
+}
+
+fun getSql14(): String? {
+    return """
+        select a from tab1 t1,
+            tab2 t2
+        where :bind1 = t2.a
             and t2.c = :bind2
+    """.trimIndent()
+}
+
+fun getSql15(): String? {
+    return """
+        select a from tab1 t1,
+            tab2 t2
+        where :bind1 = (
+                        select 
+                            e 
+                        from tab3,
+                            tab1 tt1,
+                            tab2 tt2
+                        where tt1.a = :bind2 and f = :bind3 and g = 2)
+            and t2.c = :bind4
+            and t2.b = (
+                        select a from tab1 t1
+                            inner join tab2 t2 on t1.a = t2.a
+                                and t2.a like concat(:bind5, '%%')
+            )
+    """.trimIndent()
+}
+
+fun getSql16(): String? {
+    return """
+        select a from tab1 t1,
+            tab2 t2
+        where :bind1 = (
+                        select 
+                            e 
+                        from tab3,
+                            tab1 tt1,
+                            tab2 tt2
+                        where tt1.a = :bind2 and f = :bind3 and g = 2)
+            and t2.c = :bind4
+            and :bind6 = (
+                        select a from tab1 t1
+                            inner join tab2 t2 on t1.a = t2.a
+                                and t2.a like concat(:bind5, '%%')
+            )
     """.trimIndent()
 }
