@@ -11,6 +11,7 @@ import net.sf.jsqlparser.schema.Table
 import net.sf.jsqlparser.statement.select.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.*
 
 fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
@@ -45,16 +46,9 @@ fun isColumnExist(tableName: String, columnName: String, tablesMeta: Map<String,
 
 class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : ParseEventListener {
 
-    val log = LoggerFactory.getLogger(this::class.java)
+    private val log = LoggerFactory.getLogger(this::class.java)
 
-    enum class Status(i: Int) {
-        INIT(0),
-        ON_TABLE(1),
-        ON_COLUMN(2)
-    }
-
-    private val tables = mutableListOf<Map<String, String>>()
-    private var status = Status.INIT
+    private val tables = Stack<MutableList<Map<String, String>>>()
 
     override fun onEvent(e: ParseEvent) {
         log.debug("## $e")
@@ -62,13 +56,12 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
         when (e.event) {
             ParseEvent.Type.COLUMN -> {
                 log.debug("-- column: ${e.data["columnName"]}, tableOrTableAlias: ${e.data["tableOrTableAlias"]}")
-                status = Status.ON_COLUMN
 
                 val columnName = e.data["columnName"] as String
                 val tableOrTableAliasOfColumn = e.data["tableOrTableAlias"]
 
                 if (tableOrTableAliasOfColumn != null && tableOrTableAliasOfColumn.isNotEmpty()) {
-                    val tableCandidates = tables.mapNotNull { table ->
+                    val tableCandidates = tables.peek().mapNotNull { table ->
                         val tableName = table["name"] as String
                         val tableAlias = table["alias"]
 
@@ -86,15 +79,18 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
                     }
 
                     if (tableCandidates.isEmpty()) {
-                        log.error("UnExpected: table notfound")
+                        log.error("UnExpected: table notfound $e")
+                        return
                     }
 
                     if (tableCandidates.size > 1) {
-                        log.error("UnExpected: too many table found")
+                        log.error("UnExpected: too many table found $e")
+                        return
                     }
 
                     if (!isColumnExist(tableCandidates[0], columnName, tablesMeta)) {
                         log.error("Unknown column: $columnName of ${tableCandidates[0]}")
+                        return
                     }
                 } else {
                     if (tables.size == 0) {
@@ -102,23 +98,24 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
                         return
                     }
 
-                    if (tables
+                    if (tables.peek()
                             .filter { table ->
                                 val tableName = table["name"] as String
                                 isColumnExist(tableName, columnName, tablesMeta)
                             }.count() < 1
                     ) {
-                        log.error("Unknown column: $columnName in ${tables.map { it["name"] as String }} ")
+                        log.error("Unknown column: $columnName in ${tables.peek().map { it["name"] as String }} ")
+                        return
                     }
                 }
             }
             ParseEvent.Type.TABLE -> {
                 log.debug("-- table: ${e.data["name"]}, alias: ${e.data["alias"]}")
-                status = Status.ON_TABLE
-                tables.add(e.data)
+                tables.push(mutableListOf())
+                tables.peek().add(e.data)
             }
-            ParseEvent.Type.CLEAN_CONTEXT -> {
-                tables.clear()
+            ParseEvent.Type.END_CONTEXT -> {
+                tables.pop()
             }
             ParseEvent.Type.BIND_VARIABLE -> {
             }
@@ -136,7 +133,8 @@ data class ParseEvent(val event: Type, val data: Map<String, String>) {
         BIND_VARIABLE,
         TRACE,
         TABLE,
-        CLEAN_CONTEXT
+        NEW_CONTEXT,
+        END_CONTEXT
     }
 }
 
@@ -185,6 +183,13 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
     override fun visit(plainSelect: PlainSelect?) {
         parseEventEmitter.emit(ParseEvent(ParseEvent.Type.TRACE, mapOf("trace" to "visit: plainSelect: PlainSelect?")))
 
+        parseEventEmitter.emit(
+            ParseEvent(
+                ParseEvent.Type.NEW_CONTEXT,
+                mapOf()
+            )
+        )
+
         plainSelect?.let { plainSelect ->
             val simpleSelectItemVisitor = SimpleSelectItemVisitor(parseEventEmitter)
 
@@ -213,7 +218,7 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
 
         parseEventEmitter.emit(
             ParseEvent(
-                ParseEvent.Type.CLEAN_CONTEXT,
+                ParseEvent.Type.END_CONTEXT,
                 mapOf()
             )
         )
@@ -600,7 +605,7 @@ fun getSql11(): String? {
 fun getSql12(): String? {
     return """
         select a from tab1 t1,
-            tab2 t2 t1.b = t2.b
+            tab2 t2
         where :bind1 = (select i from tab3)
             and t2.c = :bind2
     """.trimIndent()
