@@ -13,6 +13,7 @@ repositories {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
     implementation "com.github.jsqlparser:jsqlparser:0.9"
-//    implementation "com.fasterxml.jackson.core:jackson-databind:2.0.1"
     implementation "com.fasterxml.jackson.module:jackson-module-kotlin:2.11.2"
+    implementation "ch.qos.logback:logback-classic:1.2.3"
+
 }
