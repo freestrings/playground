@@ -9,13 +9,15 @@ fun main(args: Array<String>) {
     val log = LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)
     val tableMeta = ResourceLoader.loadMeta("table.json")
     val bindMeta = ResourceLoader.loadMeta("bind.json")
+    val bindExtParams = ResourceLoader.loadMeta("bindExtParams.json")
     val sql = getSql16()
     log.debug(sql)
     val bounds = calcBinds(sql, tableMeta)
     val bindValueProvider = BindValueProvider(bindMeta)
     bounds.forEach { bindMeta ->
         log.debug("$bindMeta")
-        val bound = bindValueProvider.get(tableName = bindMeta.tableName, columnName = bindMeta.columnName, data = null)
+        val data = bindExtParams["${bindMeta.tableName}.${bindMeta.columnName}"] as Map<String, Any>?
+        val bound = bindValueProvider.get(tableName = bindMeta.tableName, columnName = bindMeta.columnName, data = data)
         log.info("$bound")
     }
 }
