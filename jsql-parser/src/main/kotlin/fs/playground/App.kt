@@ -48,6 +48,7 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
 
     private val log = LoggerFactory.getLogger(this::class.java)
 
+    private val columns = Stack<MutableList<Map<String, String>>>()
     private val tables = Stack<MutableList<Map<String, String>>>()
 
     override fun onEvent(e: ParseEvent) {
@@ -57,6 +58,7 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
             ParseEvent.Type.COLUMN -> {
                 log.debug("-- column: ${e.data["columnName"]}, tableOrTableAlias: ${e.data["tableOrTableAlias"]}")
 
+                columns.peek().add(e.data)
                 val columnName = e.data["columnName"] as String
                 val tableOrTableAliasOfColumn = e.data["tableOrTableAlias"]
 
@@ -111,10 +113,14 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
             }
             ParseEvent.Type.TABLE -> {
                 log.debug("-- table: ${e.data["name"]}, alias: ${e.data["alias"]}")
-                tables.push(mutableListOf())
                 tables.peek().add(e.data)
             }
+            ParseEvent.Type.NEW_CONTEXT -> {
+                columns.push(mutableListOf())
+                tables.push(mutableListOf())
+            }
             ParseEvent.Type.END_CONTEXT -> {
+                columns.pop()
                 tables.pop()
             }
             ParseEvent.Type.BIND_VARIABLE -> {
@@ -191,13 +197,14 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
         )
 
         plainSelect?.let { plainSelect ->
-            val simpleSelectItemVisitor = SimpleSelectItemVisitor(parseEventEmitter)
+            val simpleExpressionVisitor = SimpleExpressionVisitor(parseEventEmitter)
+            val simpleSelectItemVisitor = SimpleSelectItemVisitor(parseEventEmitter, simpleExpressionVisitor)
 
             plainSelect.fromItem.accept(SimpleFromItemVisitor(parseEventEmitter))
             plainSelect.joins?.let { joins ->
                 joins.forEach { join ->
                     join.rightItem.accept(SimpleFromItemVisitor(parseEventEmitter))
-                    join.onExpression?.let { it.accept(SimpleExpressionVisitor(parseEventEmitter)) }
+                    join.onExpression?.let { it.accept(simpleExpressionVisitor) }
                 }
             }
             plainSelect.distinct?.let { distinct ->
@@ -206,7 +213,7 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
             plainSelect.selectItems?.let { selectItems ->
                 selectItems.forEach { it.accept(simpleSelectItemVisitor) }
             }
-            plainSelect.where?.let { it.accept(SimpleExpressionVisitor(parseEventEmitter)) }
+            plainSelect.where?.let { it.accept(simpleExpressionVisitor) }
         }
 
         parseEventEmitter.emit(
@@ -235,7 +242,10 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
     }
 }
 
-class SimpleSelectItemVisitor(private val parseEventEmitter: ParseEventEmitter) : SelectItemVisitorAdapter() {
+class SimpleSelectItemVisitor(
+    private val parseEventEmitter: ParseEventEmitter,
+    private val simpleExpressionVisitor: SimpleExpressionVisitor
+) : SelectItemVisitorAdapter() {
 
     override fun visit(columns: AllTableColumns?) {
         columns?.let {
@@ -250,7 +260,7 @@ class SimpleSelectItemVisitor(private val parseEventEmitter: ParseEventEmitter) 
 
     override fun visit(item: SelectExpressionItem?) {
         item?.let {
-            it.expression.accept(SimpleExpressionVisitor(parseEventEmitter))
+            it.expression.accept(simpleExpressionVisitor)
         }
     }
 
@@ -264,7 +274,9 @@ class SimpleSelectItemVisitor(private val parseEventEmitter: ParseEventEmitter) 
     }
 }
 
-class SimpleExpressionVisitor(private val parseEventEmitter: ParseEventEmitter) : ExpressionVisitorAdapter() {
+open class SimpleExpressionVisitor(
+    private val parseEventEmitter: ParseEventEmitter
+) : ExpressionVisitorAdapter() {
 
     override fun visit(function: Function?) {
         function?.let { function ->
@@ -364,8 +376,7 @@ class SimpleExpressionVisitor(private val parseEventEmitter: ParseEventEmitter) 
                     } else {
                         ""
                     },
-                    "fullyQualifiedName" to column!!.fullyQualifiedName,
-                    "inWhereCause" to "true"
+                    "fullyQualifiedName" to column!!.fullyQualifiedName
                 )
             )
         )
@@ -606,7 +617,12 @@ fun getSql12(): String? {
     return """
         select a from tab1 t1,
             tab2 t2
-        where :bind1 = (select i from tab3)
+        where :bind1 = (
+                        select 
+                            e 
+                        from tab3
+                            inner join tab1 tt1 on tt1.a = f  
+                        where f = 1 and g = 2)
             and t2.c = :bind2
     """.trimIndent()
 }
