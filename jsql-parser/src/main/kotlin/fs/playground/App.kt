@@ -139,7 +139,7 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
                 if (bindVariables.isNotEmpty()) {
                     bindVariables.peek().add(e.data.getValue("name"))
                 } else {
-                    println()
+                    log.warn("Unexpected condition")
                 }
             }
             ParseEvent.Type.NEW_BIND -> {
