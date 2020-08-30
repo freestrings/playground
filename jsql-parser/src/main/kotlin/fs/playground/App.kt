@@ -12,8 +12,8 @@ import net.sf.jsqlparser.statement.select.*
 
 fun main(args: Array<String>) {
     val tableMeta = loadTableMeta()
-    val sql = getSql1_2()
-    println("input: $sql")
+    val sql = getSql2()
+//    println("input: $sql")
     val select = CCJSqlParserUtil.parse(sql) as Select
     val parseEventEmitter = ParseEventEmitter()
     parseEventEmitter.addLister(DefaultParseEventListener(tableMeta))
@@ -52,55 +52,67 @@ class DefaultParseEventListener(private val tablesMeta: Map<String, Any>) : Pars
     private var status = Status.INIT
 
     override fun onEvent(e: ParseEvent) {
+        println("## $e")
         when (e.event) {
             ParseEvent.Type.COLUMN -> {
-                println("-- column: ${e.data["columnName"]}, tableOrTableAlias: ${e.data["tableOrTableAlias"]}")
+//                println("-- column: ${e.data["columnName"]}, tableOrTableAlias: ${e.data["tableOrTableAlias"]}")
                 status = Status.ON_COLUMN
 
                 val columnName = e.data["columnName"] as String
                 val tableOrTableAliasOfColumn = e.data["tableOrTableAlias"]
 
-                tables
-                    .map { table ->
+                if (tableOrTableAliasOfColumn != null && tableOrTableAliasOfColumn.isNotEmpty()) {
+                    val tableCandidates = tables.mapNotNull { table ->
                         val tableName = table["name"] as String
                         val tableAlias = table["alias"]
 
-                        val tableCandidate = tableOrTableAliasOfColumn?.let { tableOfColumns ->
-                            when {
-                                tableAlias == tableOfColumns -> {
-                                    tableName
-                                }
-                                tableName == tableOfColumns -> {
-                                    tableName
-                                }
-                                else -> {
-                                    null
-                                }
+                        when (tableOrTableAliasOfColumn) {
+                            tableAlias -> {
+                                tableName
                             }
-                        } ?: tableName
-
-                        if (isColumnExist(tableCandidate, columnName, tablesMeta)) {
-                            println("1. $tableCandidate - $columnName")
-                        } else {
-                            println("2. $tableCandidate - $columnName")
+                            tableName -> {
+                                tableName
+                            }
+                            else -> {
+                                null
+                            }
                         }
-
                     }
+
+                    if (tableCandidates.isEmpty()) {
+                        error("UnExpected: table notfound")
+                    }
+
+                    if (tableCandidates.size > 1) {
+                        error("UnExpected: too many table found")
+                    }
+
+                    if (!isColumnExist(tableCandidates[0], columnName, tablesMeta)) {
+                        error("Unknown column: ${tableCandidates[0]}.$columnName")
+                    }
+                } else {
+                    if (tables
+                            .filter { table ->
+                                val tableName = table["name"] as String
+                                isColumnExist(tableName, columnName, tablesMeta)
+                            }.count() < 1
+                    ) {
+                        error("Unknown column: $columnName in ${tables.map { it["name"] as String }} ")
+                    }
+                }
             }
             ParseEvent.Type.TABLE -> {
-                println("-- table: ${e.data["name"]}, alias: ${e.data["alias"]}")
-
-                if (status == Status.ON_COLUMN) {
-                    tables.clear()
-                }
-
+//                println("-- table: ${e.data["name"]}, alias: ${e.data["alias"]}")
                 status = Status.ON_TABLE
                 tables.add(e.data)
+            }
+            ParseEvent.Type.CLEAN_CONTEXT -> {
+                tables.clear()
             }
             ParseEvent.Type.BIND_VARIABLE -> {
             }
             ParseEvent.Type.LOG -> {
-                println("----$e")
+//                println("----$e")
             }
         }
     }
@@ -113,8 +125,7 @@ data class ParseEvent(val event: Type, val data: Map<String, String>) {
         BIND_VARIABLE,
         LOG,
         TABLE,
-        SUB_SELECT_START,
-        SUB_SELECT_END
+        CLEAN_CONTEXT
     }
 }
 
@@ -185,6 +196,13 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
             ParseEvent(
                 ParseEvent.Type.LOG,
                 mapOf("trace" to "visit-end: plainSelect: PlainSelect?")
+            )
+        )
+
+        parseEventEmitter.emit(
+            ParseEvent(
+                ParseEvent.Type.CLEAN_CONTEXT,
+                mapOf()
             )
         )
     }
@@ -455,12 +473,19 @@ fun getSql1_2(): String? {
 
 fun getSql2(): String? {
     return """
-        select * from tab1 t1
-            inner join tab2 t2 on t1.a = t2.a
+        select t1.c from tab1 t1
+            inner join tab2 t2 on t1.a = t2.d
     """.trimIndent()
 }
 
 fun getSql2_1(): String? {
+    return """
+        select c from tab1
+            inner join tab2 t2 on t1.a = tab1.a
+    """.trimIndent()
+}
+
+fun getSql2_2(): String? {
     return """
         select * from 
             tab1 t1,
