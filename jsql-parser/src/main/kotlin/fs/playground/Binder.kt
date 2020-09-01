@@ -304,7 +304,11 @@ class SimpleSelectVisitor(private val parseEventEmitter: ParseEventEmitter) : Se
                 mapOf("trace" to "visit: setOpList: SetOperationList?")
             )
         )
-        setOpList?.let { it.plainSelects.forEach(this::visit) }
+        setOpList?.let {
+            it.selects.forEach { selectBody ->
+                selectBody.accept(this)
+            }
+        }
     }
 }
 
