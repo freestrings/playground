@@ -1,2 +1,3 @@
 http://localhost:8080/master/read
 http://localhost:8080/slave/read
+http://localhost:8080/slave/readall

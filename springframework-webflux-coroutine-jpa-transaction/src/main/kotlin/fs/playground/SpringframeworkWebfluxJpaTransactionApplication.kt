@@ -46,7 +46,7 @@ class Ctrl(val psersonService: PersonService) {
 
     @GetMapping("/master/read")
     suspend fun readFromMaster(): Long {
-        return psersonService.readFromMaster(UUID.randomUUID().toString())
+        return psersonService.readFromMaster("master - ${UUID.randomUUID().toString()}")
     }
 
     @GetMapping("/master/write")
@@ -61,7 +61,7 @@ class Ctrl(val psersonService: PersonService) {
 
     @GetMapping("/slave/read")
     suspend fun readFromSlave(): Long {
-        return psersonService.readFromSlave(UUID.randomUUID().toString())
+        return psersonService.readFromSlave("slave - ${UUID.randomUUID().toString()}")
     }
 
     @GetMapping("/slave/write")
@@ -71,7 +71,7 @@ class Ctrl(val psersonService: PersonService) {
 
     @GetMapping("/slave/readall")
     suspend fun readAllFromSlave() {
-        psersonService.readAllFromSlave(UUID.randomUUID().toString())
+        psersonService.readAllFromSlave("slaveall - ${UUID.randomUUID().toString()}")
     }
 
     @GetMapping("/slave/read/async")
@@ -93,7 +93,10 @@ class PersonService(val personRepository: PersonRepository) {
         return asReadonlyTransaction {
             val c1 = asAsync { personRepository.countByName(uuid) }
             val c2 = asAsync { personRepository.countByName(uuid) }
-            val c3 = asAsync { personRepository.countByName(uuid) }
+            val c3 = asReadonlyTransaction {
+                val c3 = asAsync { personRepository.countByName(uuid) }
+                c3
+            }
             val (r1, r2, r3) = awaitAll(c1, c2, c3)
             r1 + r2 + r3
         }
@@ -140,35 +143,20 @@ object Dispatcher {
         call()
     }
 
-    /**
-     * 중첩된 asReadonlyTransaction 는 salve에 국한된 트랜잭션을 보장하지 않는다.
-     *
-     * 실제 쿼리 실행은 플래그 설정 이후 프로세스이기 때문
-     * 예)
-     * asReadonlyTransaction {
-     *
-     *  asReadonlyTransaction { // 1. 이 블럭 끝나면 플래그가 삭제된다.
-     *      asAsync { .. }
-     *  }
-     *
-     *  repository.count()
-     *
-     * }
-     *
-     * // 2. 실제 쿼리는 이 이후 실행 된다.
-     */
     suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        return if (!isCurrentTransactionReadOnly()) {
-            /**
-             * 코로틴을 사용하는 코드에서 MDC에서 별도로 키를 remove 하려면 일반적으로 스레드가 다르기 때문에 주의가 필요하다.
-             * withContext를 사용하면 안전하다.
-             */
-            withContext(MDCContext()) {
+        return withContext(MDCContext()) {
+            if (!isCurrentTransactionReadOnly()) {
+                /**
+                 * 코로틴을 사용하는 코드에서 MDC에서 별도로 키를 remove 하려면 일반적으로 스레드가 다르기 때문에 주의가 필요하다.
+                 * withContext를 사용하면 안전하다.
+                 */
                 MDC.put(KEY_READONLY, "evada")
+                withContext(MDCContext()) {
+                    call()
+                }
+            } else {
                 call()
             }
-        } else {
-            call()
         }
     }
 
