@@ -1,8 +1,8 @@
 package fs.playground
 
 import com.zaxxer.hikari.HikariDataSource
-import fs.playground.Dispatcher.asAsync
-import fs.playground.Dispatcher.asReadonlyTransaction
+//import fs.playground.Dispatcher.asAsync
+//import fs.playground.Dispatcher.asReadonlyTransaction
 import fs.playground.entity.Person
 import fs.playground.repository.PersonRepository
 import kotlinx.coroutines.*
@@ -41,206 +41,206 @@ fun main(args: Array<String>) {
     runApplication<SpringframeworkWebfluxJpaApplication>(*args)
 }
 
-@RestController
-class Ctrl(val psersonService: PersonService) {
-
-    @GetMapping("/master/read")
-    suspend fun readFromMaster(): Long {
-        return psersonService.readFromMaster("master - ${UUID.randomUUID().toString()}")
-    }
-
-    @GetMapping("/master/write")
-    suspend fun writeToMaster() {
-        psersonService.writeToMaster(UUID.randomUUID().toString())
-    }
-
-    @GetMapping("/master/write/asreadonly")
-    suspend fun writeToMasterAsReadonly() {
-        psersonService.writeToMasterAsReadonly(UUID.randomUUID().toString())
-    }
-
-    @GetMapping("/slave/read")
-    suspend fun readFromSlave(): Long {
-        return psersonService.readFromSlave("slave - ${UUID.randomUUID().toString()}")
-    }
-
-    @GetMapping("/slave/write")
-    suspend fun writeToSlaveAsReadonly() {
-        psersonService.writeToSlaveAsReadonly(UUID.randomUUID().toString())
-    }
-
-    @GetMapping("/slave/readall")
-    suspend fun readAllFromSlave() {
-        psersonService.readAllFromSlave("slaveall - ${UUID.randomUUID().toString()}")
-    }
-
-    @GetMapping("/slave/read/async")
-    suspend fun readFromSlaveAsyc(): Long {
-        return psersonService.readFromSlaveAsync(UUID.randomUUID().toString())
-    }
-
-}
-
-@Service
-class PersonService(val personRepository: PersonRepository) {
-
-    suspend fun readFromMaster(uuid: String) = personRepository.countByName(uuid)
-
-    @Transactional
-    suspend fun writeToMaster(uuid: String) = personRepository.save(Person(name = uuid))
-
-    suspend fun readAllFromSlave(uuid: String): Long {
-        return asReadonlyTransaction {
-            val c1 = asAsync { personRepository.countByName(uuid) }
-            val c2 = asAsync { personRepository.countByName(uuid) }
-            val c3 = asReadonlyTransaction {
-                val c3 = asAsync { personRepository.countByName(uuid) }
-                c3
-            }
-            val (r1, r2, r3) = awaitAll(c1, c2, c3)
-            r1 + r2 + r3
-        }
-    }
-
-    /**
-     * @Transactional 때문에 master에 write 된다.
-     */
-    @Transactional
-    suspend fun writeToMasterAsReadonly(uuid: String) {
-        return asReadonlyTransaction {
-            personRepository.save(Person(name = uuid))
-        }
-    }
-
-    /**
-     * Exception 발생
-     */
-    suspend fun writeToSlaveAsReadonly(uuid: String) {
-        return asReadonlyTransaction {
-            writeToMaster(uuid)
-        }
-    }
-
-    suspend fun readFromSlave(uuid: String): Long {
-        return asReadonlyTransaction { personRepository.countByName(uuid) }
-    }
-
-    suspend fun readFromSlaveAsync(uuid: String): Long {
-        return asReadonlyTransaction {
-            val c1 = asAsync { personRepository.countByName(uuid) }
-            c1.await()
-        }
-    }
-}
-
-/**
- * ThreadLocal 처리는 별도 구현하기 보다 안전하게 MDC 구현을 사용한다.
- */
-object Dispatcher {
-    private val KEY_READONLY = UUID.randomUUID().toString()
-
-    fun <T> asAsync(call: () -> T): Deferred<T> = CoroutineScope(MDCContext() + Dispatchers.Default).async {
-        call()
-    }
-
-    suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        return withContext(MDCContext()) {
-            if (!isCurrentTransactionReadOnly()) {
-                /**
-                 * 코로틴을 사용하는 코드에서 MDC에서 별도로 키를 remove 하려면 일반적으로 스레드가 다르기 때문에 주의가 필요하다.
-                 * withContext를 사용하면 안전하다.
-                 */
-                MDC.put(KEY_READONLY, "evada")
-                withContext(MDCContext()) {
-                    call()
-                }
-            } else {
-                call()
-            }
-        }
-    }
-
-    fun isCurrentTransactionReadOnly() = MDC.get(KEY_READONLY) != null
-}
-
-@Configuration
-@EnableJpaRepositories(
-        basePackages = ["fs.playground.repository"],
-        enableDefaultTransactions = false
-)
-@EnableTransactionManagement
-class Config {
-
-    companion object {
-        val SLAVE_DB_KEY = "slave"
-        val MASTER_DB_KEY = "master"
-    }
-
-    @Bean(name = ["masterDataSource"])
-    @ConfigurationProperties(prefix = "master.datasource")
-    fun masterDataSource(): DataSource? {
-        return DataSourceBuilder.create().type(HikariDataSource::class.java).build()
-    }
-
-    @Bean(name = ["slaveDataSource"])
-    @ConfigurationProperties(prefix = "slave.datasource")
-    fun slaveDataSource(): DataSource? {
-        return DataSourceBuilder.create().type(HikariDataSource::class.java).build()
-    }
-
-    @Bean(name = ["routingDataSource"])
-    fun routingDataSource(
-            @Qualifier("masterDataSource") masterDataSource: DataSource,
-            @Qualifier("slaveDataSource") slaveDataSource: DataSource,
-    ): DataSource {
-        val routingDataSource = ReplicationRoutingDataSource()
-        val dataSourceMap: MutableMap<Any, Any> = HashMap()
-        dataSourceMap[MASTER_DB_KEY] = masterDataSource
-        dataSourceMap[SLAVE_DB_KEY] = slaveDataSource
-        routingDataSource.setTargetDataSources(dataSourceMap)
-        routingDataSource.setDefaultTargetDataSource(masterDataSource)
-        return routingDataSource
-    }
-
-    @Primary
-    @Bean
-    fun dataSource(@Qualifier("routingDataSource") routingDataSource: DataSource): DataSource? {
-        return LazyConnectionDataSourceProxy(routingDataSource)
-    }
-
-    @Bean
-    fun entityManagerFactory(dataSource: DataSource): LocalContainerEntityManagerFactoryBean {
-        val em = LocalContainerEntityManagerFactoryBean()
-        em.dataSource = dataSource
-        em.setPackagesToScan("fs.playground.entity")
-        val vendorAdapter: JpaVendorAdapter = HibernateJpaVendorAdapter()
-        em.jpaVendorAdapter = vendorAdapter
-        em.setJpaProperties(additionalProperties())
-        return em
-    }
-
-    @Bean
-    fun transactionManager(dataSource: DataSource): PlatformTransactionManager? {
-        val transactionManager = JpaTransactionManager()
-        transactionManager.entityManagerFactory = entityManagerFactory(dataSource).getObject()
-        return transactionManager
-    }
-
-    fun additionalProperties(): Properties {
-        val properties = Properties();
-        properties.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL5Dialect")
-        return properties;
-    }
-
-    class ReplicationRoutingDataSource : AbstractRoutingDataSource() {
-        override fun determineCurrentLookupKey(): Any? {
-            return if (Dispatcher.isCurrentTransactionReadOnly()) {
-                SLAVE_DB_KEY
-            } else if (TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
-                SLAVE_DB_KEY
-            } else {
-                MASTER_DB_KEY
-            }
-        }
-    }
-}
+//@RestController
+//class Ctrl(val psersonService: PersonService) {
+//
+//    @GetMapping("/master/read")
+//    suspend fun readFromMaster(): Long {
+//        return psersonService.readFromMaster("master - ${UUID.randomUUID().toString()}")
+//    }
+//
+//    @GetMapping("/master/write")
+//    suspend fun writeToMaster() {
+//        psersonService.writeToMaster(UUID.randomUUID().toString())
+//    }
+//
+//    @GetMapping("/master/write/asreadonly")
+//    suspend fun writeToMasterAsReadonly() {
+//        psersonService.writeToMasterAsReadonly(UUID.randomUUID().toString())
+//    }
+//
+//    @GetMapping("/slave/read")
+//    suspend fun readFromSlave(): Long {
+//        return psersonService.readFromSlave("slave - ${UUID.randomUUID().toString()}")
+//    }
+//
+//    @GetMapping("/slave/write")
+//    suspend fun writeToSlaveAsReadonly() {
+//        psersonService.writeToSlaveAsReadonly(UUID.randomUUID().toString())
+//    }
+//
+//    @GetMapping("/slave/readall")
+//    suspend fun readAllFromSlave() {
+//        psersonService.readAllFromSlave("slaveall - ${UUID.randomUUID().toString()}")
+//    }
+//
+//    @GetMapping("/slave/read/async")
+//    suspend fun readFromSlaveAsyc(): Long {
+//        return psersonService.readFromSlaveAsync(UUID.randomUUID().toString())
+//    }
+//
+//}
+//
+//@Service
+//class PersonService(val personRepository: PersonRepository) {
+//
+//    suspend fun readFromMaster(uuid: String) = personRepository.countByName(uuid)
+//
+//    @Transactional
+//    suspend fun writeToMaster(uuid: String) = personRepository.save(Person(name = uuid))
+//
+//    suspend fun readAllFromSlave(uuid: String): Long {
+//        return asReadonlyTransaction {
+//            val c1 = asAsync { personRepository.countByName(uuid) }
+//            val c2 = asAsync { personRepository.countByName(uuid) }
+//            val c3 = asReadonlyTransaction {
+//                val c3 = asAsync { personRepository.countByName(uuid) }
+//                c3
+//            }
+//            val (r1, r2, r3) = awaitAll(c1, c2, c3)
+//            r1 + r2 + r3
+//        }
+//    }
+//
+//    /**
+//     * @Transactional 때문에 master에 write 된다.
+//     */
+//    @Transactional
+//    suspend fun writeToMasterAsReadonly(uuid: String) {
+//        return asReadonlyTransaction {
+//            personRepository.save(Person(name = uuid))
+//        }
+//    }
+//
+//    /**
+//     * Exception 발생
+//     */
+//    suspend fun writeToSlaveAsReadonly(uuid: String) {
+//        return asReadonlyTransaction {
+//            writeToMaster(uuid)
+//        }
+//    }
+//
+//    suspend fun readFromSlave(uuid: String): Long {
+//        return asReadonlyTransaction { personRepository.countByName(uuid) }
+//    }
+//
+//    suspend fun readFromSlaveAsync(uuid: String): Long {
+//        return asReadonlyTransaction {
+//            val c1 = asAsync { personRepository.countByName(uuid) }
+//            c1.await()
+//        }
+//    }
+//}
+//
+///**
+// * ThreadLocal 처리는 별도 구현하기 보다 안전하게 MDC 구현을 사용한다.
+// */
+//object Dispatcher {
+//    private val KEY_READONLY = UUID.randomUUID().toString()
+//
+//    fun <T> asAsync(call: () -> T): Deferred<T> = CoroutineScope(MDCContext() + Dispatchers.Default).async {
+//        call()
+//    }
+//
+//    suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
+//        return withContext(MDCContext()) {
+//            if (!isCurrentTransactionReadOnly()) {
+//                /**
+//                 * 코로틴을 사용하는 코드에서 MDC에서 별도로 키를 remove 하려면 일반적으로 스레드가 다르기 때문에 주의가 필요하다.
+//                 * withContext를 사용하면 안전하다.
+//                 */
+//                MDC.put(KEY_READONLY, "evada")
+//                withContext(MDCContext()) {
+//                    call()
+//                }
+//            } else {
+//                call()
+//            }
+//        }
+//    }
+//
+//    fun isCurrentTransactionReadOnly() = MDC.get(KEY_READONLY) != null
+//}
+//
+//@Configuration
+//@EnableJpaRepositories(
+//        basePackages = ["fs.playground.repository"],
+//        enableDefaultTransactions = false
+//)
+//@EnableTransactionManagement
+//class Config {
+//
+//    companion object {
+//        val SLAVE_DB_KEY = "slave"
+//        val MASTER_DB_KEY = "master"
+//    }
+//
+//    @Bean(name = ["masterDataSource"])
+//    @ConfigurationProperties(prefix = "master.datasource")
+//    fun masterDataSource(): DataSource? {
+//        return DataSourceBuilder.create().type(HikariDataSource::class.java).build()
+//    }
+//
+//    @Bean(name = ["slaveDataSource"])
+//    @ConfigurationProperties(prefix = "slave.datasource")
+//    fun slaveDataSource(): DataSource? {
+//        return DataSourceBuilder.create().type(HikariDataSource::class.java).build()
+//    }
+//
+//    @Bean(name = ["routingDataSource"])
+//    fun routingDataSource(
+//            @Qualifier("masterDataSource") masterDataSource: DataSource,
+//            @Qualifier("slaveDataSource") slaveDataSource: DataSource,
+//    ): DataSource {
+//        val routingDataSource = ReplicationRoutingDataSource()
+//        val dataSourceMap: MutableMap<Any, Any> = HashMap()
+//        dataSourceMap[MASTER_DB_KEY] = masterDataSource
+//        dataSourceMap[SLAVE_DB_KEY] = slaveDataSource
+//        routingDataSource.setTargetDataSources(dataSourceMap)
+//        routingDataSource.setDefaultTargetDataSource(masterDataSource)
+//        return routingDataSource
+//    }
+//
+//    @Primary
+//    @Bean
+//    fun dataSource(@Qualifier("routingDataSource") routingDataSource: DataSource): DataSource? {
+//        return LazyConnectionDataSourceProxy(routingDataSource)
+//    }
+//
+//    @Bean
+//    fun entityManagerFactory(dataSource: DataSource): LocalContainerEntityManagerFactoryBean {
+//        val em = LocalContainerEntityManagerFactoryBean()
+//        em.dataSource = dataSource
+//        em.setPackagesToScan("fs.playground.entity")
+//        val vendorAdapter: JpaVendorAdapter = HibernateJpaVendorAdapter()
+//        em.jpaVendorAdapter = vendorAdapter
+//        em.setJpaProperties(additionalProperties())
+//        return em
+//    }
+//
+//    @Bean
+//    fun transactionManager(dataSource: DataSource): PlatformTransactionManager? {
+//        val transactionManager = JpaTransactionManager()
+//        transactionManager.entityManagerFactory = entityManagerFactory(dataSource).getObject()
+//        return transactionManager
+//    }
+//
+//    fun additionalProperties(): Properties {
+//        val properties = Properties();
+//        properties.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL5Dialect")
+//        return properties;
+//    }
+//
+//    class ReplicationRoutingDataSource : AbstractRoutingDataSource() {
+//        override fun determineCurrentLookupKey(): Any? {
+//            return if (Dispatcher.isCurrentTransactionReadOnly()) {
+//                SLAVE_DB_KEY
+//            } else if (TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
+//                SLAVE_DB_KEY
+//            } else {
+//                MASTER_DB_KEY
+//            }
+//        }
+//    }
+//}
