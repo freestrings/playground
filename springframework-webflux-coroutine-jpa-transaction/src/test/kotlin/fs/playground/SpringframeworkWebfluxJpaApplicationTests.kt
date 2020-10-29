@@ -5,115 +5,126 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import java.util.concurrent.Executors
-import java.util.concurrent.Phaser
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
-
 
 @SpringBootTest
 class SpringframeworkWebfluxJpaApplicationTests {
 
     class Testa {
-        private val dispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+        private val dispatcher = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
 
-        val counter = AtomicInteger(0)
+        private val counter = AtomicInteger(0)
+        private val errorCounter = AtomicInteger(0)
 
-        suspend fun doAsync(msg: String, expected: State) {
+        fun a(msg: String, expected: State? = null) {
+            try {
+                TT.assert(expected)
+            } catch (e: Throwable) {
+                println("error[$expected]: $msg")
+                errorCounter.incrementAndGet()
+            }
+
+        }
+
+        fun doAsync(call: suspend () -> Unit) {
             counter.incrementAndGet()
-            CoroutineScope(MyContext(null, "doAsync") + dispatcher).async {
+            CoroutineScope(MyContext("doAsync") + dispatcher).async {
                 try {
-                    TT.assert(expected)
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                    call()
+                } finally {
+                    counter.decrementAndGet()
                 }
-                counter.decrementAndGet()
-                println("@ call $msg : ${TT.get()}, ${Thread.currentThread().name}")
-                println("# remain $counter")
             }
         }
 
-        fun doAsyncCall(call: suspend () -> Unit) {
-            CoroutineScope(MyContext(null, "doAsyncCall") + dispatcher).async {
+        suspend fun inBlock(call: suspend () -> Unit) {
+            withContext(MyContext("inBlock-safeGuard")) {
+                TT.set(State.IN_BLOCK)
+                withContext(MyContext("inBlock")) {
+                    call()
+                }
+            }
+        }
+
+        suspend fun normal(call: suspend () -> Unit) {
+            withContext(MyContext("normal")) {
+                TT.set(null)
                 call()
             }
         }
 
         fun run() {
-            Thread.sleep(1000)
             while (counter.get() != 0) {
                 Thread.sleep(1000)
-                println("remain $counter")
+                if (errorCounter.get() > 0) {
+                    throw Exception("fail")
+                }
             }
         }
     }
 
-    fun iter1(i: Int, testa: Testa) {
-        testa.doAsyncCall {
-            withContext(MyContext(State.IN_BLOCK, "$i.1")) {
-                testa.doAsync("$i.1", State.IN_BLOCK)
-//                testa.doAsyncCall {
-//                    testa.doAsync("$i.2", State.IN_BLOCK)
-//                }
-//                withContext(MyContext(State.UNKNOWN)) {
-//                    testa.doAsync("$i.3", State.UNKNOWN)
-//                    testa.doAsync("$i.4", State.UNKNOWN)
-//                    withContext(MyContext(State.IN_BLOCK)) {
-//                        testa.doAsync("$i.5", State.IN_BLOCK)
-//                        testa.doAsync("$i.6", State.IN_BLOCK)
-//                    }
-//                }
-//                withContext(MyContext(State.UNKNOWN)) {
-//                    testa.doAsync("7", State.UNKNOWN)
-//                    testa.doAsync("8", State.UNKNOWN)
-//                    withContext(MyContext(State.IN_BLOCK)) {
-//                        testa.doAsync("9", State.IN_BLOCK)
-//                        testa.doAsync("10", State.IN_BLOCK)
-//                    }
-//                }
+    suspend fun blockDefault(i: Int, testa: Testa, message: String? = "0") {
+        testa.inBlock {
+            testa.a("$i.blockDefault.1.$message", State.IN_BLOCK)
+
+            testa.doAsync {
+                testa.a("$i.blockDefault.2.$message", State.IN_BLOCK)
             }
-            testa.doAsync("$i.11", State.IN_BLOCK)
-//            withContext(MyContext(State.IN_BLOCK)) {
-//                testa.doAsync("12", State.IN_BLOCK)
-//                testa.doAsync("13", State.IN_BLOCK)
-//            }
-//            testa.doAsyncCall {
-//                testa.doAsync("14", State.IN_BLOCK)
-//                withContext(MyContext(State.UNKNOWN)) {
-//                    testa.doAsync("15", State.UNKNOWN)
-//                    testa.doAsync("16", State.UNKNOWN)
-//                }
-//            }
-//            testa.doAsync("17", State.UNKNOWN)
-//            testa.doAsync("18", State.UNKNOWN)
-//            testa.doAsync("19", State.UNKNOWN)
-//            testa.doAsync("20", State.UNKNOWN)
+
+            testa.doAsync {
+                testa.a("$i.blockDefault.3.$message", State.IN_BLOCK)
+            }
+
+            testa.a("$i.blockDefault.4.$message", State.IN_BLOCK)
+        }
+    }
+
+    suspend fun normal(i: Int, testa: Testa, message: String? = "0") {
+        testa.a("$i.normal.1.$message")
+
+        testa.doAsync {
+            testa.a("$i.normal.2.$message")
+        }
+    }
+
+    fun defaultTesta(i: Int, testa: Testa) {
+
+        testa.doAsync {
+
+            blockDefault(i, testa)
+
+            normal(i, testa, "1")
+
+            testa.inBlock {
+                blockDefault(i, testa, "1")
+                normal(i, testa)
+                blockDefault(i, testa, "2")
+            }
+
+            normal(i, testa, "2")
         }
     }
 
     @Test
     fun iterMany() {
+        val testa = Testa()
         runBlocking {
-            val testa = Testa()
-            for (i in 0 until 2) {
-                iter1(i, testa)
+            for (i in 0 until 10) {
+                defaultTesta(i, testa)
             }
-            testa.run()
         }
+        testa.run()
     }
 
     enum class State {
-        UNKNOWN,
         IN_BLOCK,
     }
 
     object TT {
 
-        private val localThread = object : ThreadLocal<State?>() {
-            override fun initialValue(): State {
-                return State.UNKNOWN
-            }
-        }
+        private val localThread = ThreadLocal<State?>()
 
         fun get(): State? {
             return localThread.get()
@@ -127,21 +138,16 @@ class SpringframeworkWebfluxJpaApplicationTests {
             localThread.remove()
         }
 
-        fun assert(state: State) {
-            println("$state, ${get()}")
+        fun assert(state: State?) {
             Assertions.assertEquals(state, get())
         }
 
     }
 
-    class MyContext(state: State?, val msg: String) : ThreadContextElement<State?>, AbstractCoroutineContextElement(MyContext) {
+    class MyContext(val message: String) : ThreadContextElement<State?>, AbstractCoroutineContextElement(MyContext) {
         companion object Key : CoroutineContext.Key<MyContext>
 
-        private val data = state?.let { state } ?: TT.get()
-
-        init {
-            println("^ $data - $msg")
-        }
+        private val data = TT.get()
 
         override fun updateThreadContext(context: CoroutineContext): State? {
             val old = TT.get()
@@ -150,7 +156,6 @@ class SpringframeworkWebfluxJpaApplicationTests {
         }
 
         override fun restoreThreadContext(context: CoroutineContext, oldState: State?) {
-            println("restore $msg, $oldState")
             when (oldState) {
                 State.IN_BLOCK -> TT.set(oldState)
                 else -> TT.remove()
