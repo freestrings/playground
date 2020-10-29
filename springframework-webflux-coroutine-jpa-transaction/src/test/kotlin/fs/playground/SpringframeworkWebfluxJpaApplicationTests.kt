@@ -95,11 +95,15 @@ class SpringframeworkWebfluxJpaApplicationTests {
 
             blockDefault(i, testa)
 
-            normal(i, testa, "1")
+            normal(i, testa)
 
             testa.inBlock {
                 blockDefault(i, testa, "1")
-                normal(i, testa)
+
+                testa.normal {
+                    normal(i, testa, "1")
+                }
+
                 blockDefault(i, testa, "2")
             }
 
