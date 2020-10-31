@@ -40,17 +40,13 @@ class SpringframeworkWebfluxJpaApplicationTests {
         }
 
         suspend fun inBlock(call: suspend () -> Unit) {
-            withContext(MyContext("inBlock-safeGuard")) {
-                TT.set(State.IN_BLOCK)
-                withContext(MyContext("inBlock")) {
-                    call()
-                }
+            withContext(TT.inBlock()) {
+                call()
             }
         }
 
         suspend fun normal(call: suspend () -> Unit) {
             withContext(MyContext("normal")) {
-                TT.set(null)
                 call()
             }
         }
@@ -145,6 +141,8 @@ class SpringframeworkWebfluxJpaApplicationTests {
         fun assert(state: State?) {
             Assertions.assertEquals(state, get())
         }
+
+        fun inBlock() = localThread.asContextElement(State.IN_BLOCK)
 
     }
 

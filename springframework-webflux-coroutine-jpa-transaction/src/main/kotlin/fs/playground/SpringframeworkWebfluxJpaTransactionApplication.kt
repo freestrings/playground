@@ -165,6 +165,7 @@ object LTC {
         localThread.remove()
     }
 
+    fun asReadOnly() = localThread.asContextElement(State.IN_READONLY)
 }
 
 class LTCContext(val message: String? = null) : ThreadContextElement<LTC.State?>, AbstractCoroutineContextElement(LTCContext) {
@@ -194,11 +195,8 @@ object LTCDispatcher {
 
     suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
         val r = CoroutineScope(LTCContext() + Dispatchers.Default).async {
-            withContext(LTCContext("asReadonlyTransaction-safeGuard")) {
-                LTC.set(LTC.State.IN_READONLY)
-                withContext(LTCContext("asReadonlyTransaction")) {
-                    call()
-                }
+            withContext(LTC.asReadOnly()) {
+                call()
             }
         }
         return r.await()
