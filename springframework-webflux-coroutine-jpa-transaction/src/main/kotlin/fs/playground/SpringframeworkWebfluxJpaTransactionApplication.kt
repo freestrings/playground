@@ -147,7 +147,8 @@ class PersonService(val personRepository: PersonRepository) {
 }
 
 internal object LTC {
-    private val dispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+//    private val dispatcher = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
+    private val dispatcher = Dispatchers.Default
 
     enum class State {
         IN_READONLY,
@@ -174,7 +175,11 @@ internal object LTC {
     }
 
     fun asCoroutineContext(state: State? = null): CoroutineContext {
-        return asContext(state) + dispatcher
+        return if (state == null && get() == null) {
+            dispatcher
+        } else {
+            asContext(state) + dispatcher
+        }
     }
 }
 
