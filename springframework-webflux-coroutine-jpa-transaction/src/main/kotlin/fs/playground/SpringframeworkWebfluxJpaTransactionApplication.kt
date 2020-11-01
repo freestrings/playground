@@ -32,6 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.*
+import java.util.concurrent.Executors
 import javax.sql.DataSource
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -145,7 +146,8 @@ class PersonService(val personRepository: PersonRepository) {
     }
 }
 
-object LTC {
+internal object LTC {
+    private val dispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
 
     enum class State {
         IN_READONLY,
@@ -165,10 +167,18 @@ object LTC {
         localThread.remove()
     }
 
-    fun asReadOnly() = localThread.asContextElement(State.IN_READONLY)
+    fun asContext(state: State? = null): ThreadContextElement<State?> {
+        return state?.let {
+            localThread.asContextElement(State.IN_READONLY)
+        } ?: LTCContext()
+    }
+
+    fun asCoroutineContext(state: State? = null): CoroutineContext {
+        return asContext(state) + dispatcher
+    }
 }
 
-class LTCContext(val message: String? = null) : ThreadContextElement<LTC.State?>, AbstractCoroutineContextElement(LTCContext) {
+internal class LTCContext : ThreadContextElement<LTC.State?>, AbstractCoroutineContextElement(LTCContext) {
     companion object Key : CoroutineContext.Key<LTCContext>
 
     private val data = LTC.get()
@@ -189,15 +199,13 @@ class LTCContext(val message: String? = null) : ThreadContextElement<LTC.State?>
 
 object LTCDispatcher {
 
-    fun <T> asAsync(call: () -> T): Deferred<T> = CoroutineScope(LTCContext() + Dispatchers.Default).async {
+    fun <T> asAsync(call: () -> T): Deferred<T> = CoroutineScope(LTC.asCoroutineContext()).async {
         call()
     }
 
     suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        val r = CoroutineScope(LTCContext() + Dispatchers.Default).async {
-            withContext(LTC.asReadOnly()) {
-                call()
-            }
+        val r = CoroutineScope(LTC.asCoroutineContext(LTC.State.IN_READONLY)).async {
+            call()
         }
         return r.await()
     }

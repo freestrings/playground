@@ -30,7 +30,7 @@ class SpringframeworkWebfluxJpaApplicationTests {
 
         fun doAsync(call: suspend () -> Unit) {
             counter.incrementAndGet()
-            CoroutineScope(MyContext("doAsync") + dispatcher).async {
+            CoroutineScope(TT.asContext() + dispatcher).async {
                 try {
                     call()
                 } finally {
@@ -40,13 +40,13 @@ class SpringframeworkWebfluxJpaApplicationTests {
         }
 
         suspend fun inBlock(call: suspend () -> Unit) {
-            withContext(TT.inBlock()) {
+            withContext(TT.asContext(State.IN_BLOCK)) {
                 call()
             }
         }
 
         suspend fun normal(call: suspend () -> Unit) {
-            withContext(MyContext("normal")) {
+            withContext(TT.asContext()) {
                 call()
             }
         }
@@ -57,6 +57,55 @@ class SpringframeworkWebfluxJpaApplicationTests {
                 if (errorCounter.get() > 0) {
                     throw Exception("fail")
                 }
+            }
+        }
+    }
+
+    enum class State {
+        IN_BLOCK,
+    }
+
+    object TT {
+
+        private val localThread = ThreadLocal<State?>()
+
+        fun get(): State? {
+            return localThread.get()
+        }
+
+        fun set(value: State?) {
+            localThread.set(value)
+        }
+
+        fun remove() {
+            localThread.remove()
+        }
+
+        fun assert(state: State?) {
+            Assertions.assertEquals(state, get())
+        }
+
+        fun asContext(state: State? = null): ThreadContextElement<State?> {
+            return state?.let {
+                localThread.asContextElement(it)
+            } ?: TTContext()
+        }
+
+    }
+
+    internal class TTContext(private val data: State? = TT.get()) : ThreadContextElement<State?>, AbstractCoroutineContextElement(TTContext) {
+        companion object Key : CoroutineContext.Key<TTContext>
+
+        override fun updateThreadContext(context: CoroutineContext): State? {
+            val old = TT.get()
+            TT.set(data)
+            return old
+        }
+
+        override fun restoreThreadContext(context: CoroutineContext, oldState: State?) {
+            when (oldState) {
+                State.IN_BLOCK -> TT.set(oldState)
+                else -> TT.remove()
             }
         }
     }
@@ -116,52 +165,5 @@ class SpringframeworkWebfluxJpaApplicationTests {
             }
         }
         testa.run()
-    }
-
-    enum class State {
-        IN_BLOCK,
-    }
-
-    object TT {
-
-        private val localThread = ThreadLocal<State?>()
-
-        fun get(): State? {
-            return localThread.get()
-        }
-
-        fun set(value: State?) {
-            localThread.set(value)
-        }
-
-        fun remove() {
-            localThread.remove()
-        }
-
-        fun assert(state: State?) {
-            Assertions.assertEquals(state, get())
-        }
-
-        fun inBlock() = localThread.asContextElement(State.IN_BLOCK)
-
-    }
-
-    class MyContext(val message: String) : ThreadContextElement<State?>, AbstractCoroutineContextElement(MyContext) {
-        companion object Key : CoroutineContext.Key<MyContext>
-
-        private val data = TT.get()
-
-        override fun updateThreadContext(context: CoroutineContext): State? {
-            val old = TT.get()
-            TT.set(data)
-            return old
-        }
-
-        override fun restoreThreadContext(context: CoroutineContext, oldState: State?) {
-            when (oldState) {
-                State.IN_BLOCK -> TT.set(oldState)
-                else -> TT.remove()
-            }
-        }
     }
 }
