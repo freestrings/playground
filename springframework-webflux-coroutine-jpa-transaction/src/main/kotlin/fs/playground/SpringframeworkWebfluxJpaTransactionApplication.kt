@@ -147,8 +147,8 @@ class PersonService(val personRepository: PersonRepository) {
 }
 
 internal object LTC {
-//    private val dispatcher = Executors.newFixedThreadPool(4).asCoroutineDispatcher()
-    private val dispatcher = Dispatchers.Default
+    private val dispatcher = Executors.newFixedThreadPool(2).asCoroutineDispatcher()
+//    private val dispatcher = Dispatchers.Default
 
     enum class State {
         IN_READONLY,
@@ -168,11 +168,7 @@ internal object LTC {
         localThread.remove()
     }
 
-    fun asContext(state: State? = null): ThreadContextElement<State?> {
-        return state?.let {
-            localThread.asContextElement(State.IN_READONLY)
-        } ?: LTCContext()
-    }
+    fun asContext(state: State? = null) = LTCContext(state)
 
     fun asCoroutineContext(state: State? = null): CoroutineContext {
         return if (state == null && get() == null) {
@@ -183,10 +179,10 @@ internal object LTC {
     }
 }
 
-internal class LTCContext : ThreadContextElement<LTC.State?>, AbstractCoroutineContextElement(LTCContext) {
+internal class LTCContext(state: LTC.State?) : ThreadContextElement<LTC.State?>, AbstractCoroutineContextElement(LTCContext) {
     companion object Key : CoroutineContext.Key<LTCContext>
 
-    private val data = LTC.get()
+    private val data = state?.let { it } ?: LTC.get()
 
     override fun updateThreadContext(context: CoroutineContext): LTC.State? {
         val old = LTC.get()
@@ -209,10 +205,14 @@ object LTCDispatcher {
     }
 
     suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        val r = CoroutineScope(LTC.asCoroutineContext(LTC.State.IN_READONLY)).async {
-            call()
+        assert(LTC.get() != LTC.State.IN_READONLY)
+
+        return withContext(LTC.asContext()) {
+            val r = CoroutineScope(LTC.asCoroutineContext(LTC.State.IN_READONLY)).async {
+                call()
+            }
+            r.await()
         }
-        return r.await()
     }
 
     fun isCurrentTransactionReadOnly() = LTC.get() == LTC.State.IN_READONLY
