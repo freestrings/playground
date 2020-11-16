@@ -3,6 +3,7 @@ package fs.playground
 import com.zaxxer.hikari.HikariDataSource
 import fs.playground.LTCDispatcher.asAsync
 import fs.playground.LTCDispatcher.asReadonlyTransaction
+import fs.playground.LTCDispatcher.getUUID
 import fs.playground.LTCDispatcher.withUUID
 import fs.playground.entity.Person
 import fs.playground.repository.PersonRepository
@@ -105,11 +106,20 @@ class PersonService(val personRepository: PersonRepository) {
 
     suspend fun read(uuid: String) = withUUID { personRepository.countByName(uuid) }
 
-    suspend fun readAsync(uuid: String) = withUUID { asAsync { personRepository.countByName(uuid) } }
+    suspend fun readAsync(uuid: String): Deferred<Long> {
+//        println("readAsync 1. ${getUUID()}")
+        return withUUID {
+//            println("readAsync 2. ${getUUID()}")
+            asAsync {
+//                println("readAsync 3. ${getUUID()}")
+                personRepository.countByName(uuid)
+            }
+        }
+    }
 
     suspend fun readFromSlave(uuid: String) = withUUID { asReadonlyTransaction { read(uuid) } }
 
-    suspend fun readFromSlaveAsync(uuid: String) = withUUID { asReadonlyTransaction { readAsync(uuid) } }
+    suspend fun readFromSlaveAsync(uuid: String) = asReadonlyTransaction { withUUID { readAsync(uuid) } }
 
     @Transactional
     suspend fun write(uuid: String) = withUUID { personRepository.save(Person(name = uuid)) }
@@ -118,7 +128,9 @@ class PersonService(val personRepository: PersonRepository) {
     suspend fun writeToSlave(uuid: String) = asReadonlyTransaction { withUUID { personRepository.save(Person(name = uuid)) } }
 
     suspend fun readAllFromSlave(uuid: String): Long {
+        println("0. ${getUUID()}")
         return asReadonlyTransaction {
+            println("1. ${getUUID()}")
             val c1 = readAsync(uuid)
             val c2 = readAsync(uuid)
             val c3 = readFromSlaveAsync(uuid)
@@ -177,6 +189,14 @@ internal object LTC {
         localThread.remove()
     }
 
+    fun merge(state: State? = null, uuid: String? = null): LTCData? {
+        val data = get()
+        val mergedUuid = uuid?.let { it } ?: data?.uuid
+        val mergedState = state?.let { it } ?: data?.state
+        set(LTCData(state = mergedState, uuid = mergedUuid))
+        return get()
+    }
+
     fun asContext(state: State? = null) = LTCContext(state)
 
     fun asCoroutineContext(state: State? = null): CoroutineContext {
@@ -192,21 +212,21 @@ internal object LTC {
 internal class LTCContext(state: LTC.State?) : ThreadContextElement<LTC.LTCData?>, AbstractCoroutineContextElement(LTCContext) {
     companion object Key : CoroutineContext.Key<LTCContext>
 
-    private val data = state?.let { inputState ->
-        LTC.get()?.let { LTC.LTCData(state = inputState, uuid = it.uuid) } ?: LTC.LTCData(state = inputState)
-    } ?: LTC.get()
+    private val data = LTC.merge(state = state)
 
     override fun updateThreadContext(context: CoroutineContext): LTC.LTCData? {
         val old = LTC.get()
+//        println("update ${Thread.currentThread()} $data")
         LTC.set(data)
         return old
     }
 
     override fun restoreThreadContext(context: CoroutineContext, oldState: LTC.LTCData?) {
-        if (oldState != null) {
-            LTC.set(oldState)
-        } else {
+//        println("restore ${Thread.currentThread()} $oldState")
+        if (oldState == null || (oldState?.state == null && oldState?.uuid == null)) {
             LTC.remove()
+        } else {
+            LTC.set(oldState)
         }
     }
 }
@@ -218,9 +238,10 @@ object LTCDispatcher {
     }
 
     suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        assert(LTC.get()?.let { it.state } != LTC.State.IN_READONLY)
+        assert(LTC.get()?.state != LTC.State.IN_READONLY)
 
         return withContext(LTC.asContext()) {
+            LTC.merge(uuid = this.coroutineContext[ReactorContext]?.context?.get("uuid"))
             val r = CoroutineScope(LTC.asCoroutineContext(LTC.State.IN_READONLY)).async {
                 call()
             }
@@ -230,17 +251,15 @@ object LTCDispatcher {
 
     suspend fun <T> withUUID(call: suspend () -> T): T {
         return withContext(LTC.asContext()) {
-            val ctx = this.coroutineContext[ReactorContext]?.context
-            val uuid = ctx?.let { it.get("uuid") } ?: ""
-            LTC.set(LTC.LTCData(uuid = uuid))
+            LTC.merge(uuid = this.coroutineContext[ReactorContext]?.context?.get("uuid"))
             call()
         }
     }
 
-    fun isCurrentTransactionReadOnly() = LTC.get()?.let { it.state } == LTC.State.IN_READONLY
+    fun isCurrentTransactionReadOnly() = LTC.get()?.state == LTC.State.IN_READONLY
 
     fun getUUID(): String? {
-        return LTC.get()?.let { it.uuid }
+        return LTC.get()?.uuid
     }
 }
 
