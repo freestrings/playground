@@ -29,7 +29,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.EnableTransactionManagement
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.support.DefaultTransactionStatus
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
@@ -94,7 +93,7 @@ class Ctrl(val psersonService: PersonService) {
 
     @GetMapping("/thread/is_same")
     suspend fun threadIsSame(): Long {
-        FsDispatcher.asReadonlyTransaction {
+        asReadonlyTransaction {
             val ret1 = FsDispatcher.asAsync {
                 0
             }
@@ -135,7 +134,9 @@ class PersonService(val personRepository: PersonRepository) {
     }
 
     @Transactional
-    suspend fun writeToSlave(uuid: String) = asReadonlyTransaction { personRepository.save(Person(name = uuid)) }
+    suspend fun writeToSlave(uuid: String) = asReadonlyTransaction {
+        personRepository.save(Person(name = uuid))
+    }
 
     suspend fun readAllFromSlave(uuid: String): Long {
         return asReadonlyTransaction {
@@ -228,7 +229,7 @@ class Config {
 
     @Bean
     fun transactionManager(dataSource: DataSource): PlatformTransactionManager? {
-        val transactionManager = LTCJpaTransactionManager()
+        val transactionManager = JpaTransactionManager()
         transactionManager.entityManagerFactory = entityManagerFactory(dataSource).getObject()
         return transactionManager
     }
@@ -256,14 +257,4 @@ class Config {
         }
     }
 
-    class LTCJpaTransactionManager : JpaTransactionManager() {
-        override fun doCommit(status: DefaultTransactionStatus) {
-            println("commit: readonly(${FsDispatcher.isCurrentTransactionReadOnly()}) , transaction(${TransactionSynchronizationManager.isCurrentTransactionReadOnly()}) ${Thread.currentThread()}")
-            if (FsDispatcher.isCurrentTransactionReadOnly()) {
-                throw Exception("readonly transaction")
-            } else {
-                super.doCommit(status)
-            }
-        }
-    }
 }

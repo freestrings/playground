@@ -60,7 +60,7 @@ object FsDispatcher {
     private val threadPool = Executors.newFixedThreadPool(8).asCoroutineDispatcher()
 
     suspend fun <T> asAsync(call: () -> T): Deferred<T> {
-        return withContext(FsContext()) {
+        return withContext(FsContext() + threadPool) {
             val outerName1 = Thread.currentThread().name
 
             val ret = CoroutineScope(coroutineContext + threadPool).async {
@@ -87,14 +87,12 @@ object FsDispatcher {
     }
 
     suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        return withContext(FsContext()) {
+        return withContext(FsContext() + threadPool) {
             val map: MutableMap<String, Any> = coroutineContext[ReactorContext]!!.context!!.get("map")
             val readonlyCount = map.getOrDefault("readonly", "0").toString().toInt()
             map["readonly"] = readonlyCount + 1
             val ret = try {
-                withContext(ReadOnlyContext(true) + coroutineContext) {
-                    call()
-                }
+                withContext(ReadOnlyContext(true) + coroutineContext) { call() }
             } finally {
                 map["readonly"] = map["readonly"].toString().toInt() - 1
             }
@@ -129,8 +127,7 @@ object FsDispatcher {
         }
     }
 
-    fun isCurrentTransactionReadOnly() : Boolean {
-        println("isCurrentTransactionReadOnly ${READONLY.get()} ${Thread.currentThread()}")
+    fun isCurrentTransactionReadOnly(): Boolean {
         return READONLY.get()
     }
 
