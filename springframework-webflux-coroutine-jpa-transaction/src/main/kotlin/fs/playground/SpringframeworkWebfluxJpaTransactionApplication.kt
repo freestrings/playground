@@ -1,14 +1,13 @@
 package fs.playground
 
 import com.zaxxer.hikari.HikariDataSource
-import fs.playground.LTCDispatcher.asAsync
-import fs.playground.LTCDispatcher.asReadonlyTransaction
-import fs.playground.LTCDispatcher.getUUID
-import fs.playground.LTCDispatcher.withUUID
+import fs.playground.FsDispatcher.asAsync
+import fs.playground.FsDispatcher.asReadonlyTransaction
+import fs.playground.FsDispatcher.asRestoration
 import fs.playground.entity.Person
 import fs.playground.repository.PersonRepository
-import kotlinx.coroutines.*
-import kotlinx.coroutines.reactor.ReactorContext
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.awaitAll
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -35,10 +34,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.*
-import java.util.concurrent.Executors
 import javax.sql.DataSource
-import kotlin.coroutines.AbstractCoroutineContextElement
-import kotlin.coroutines.CoroutineContext
 
 @SpringBootApplication(exclude = [DataSourceAutoConfiguration::class])
 class SpringframeworkWebfluxJpaApplication
@@ -57,7 +53,7 @@ class Ctrl(val psersonService: PersonService) {
 
     @GetMapping("/complex")
     suspend fun complexWithWrite() {
-        withUUID { psersonService.complex(UUID.randomUUID().toString()) }
+        psersonService.complex(UUID.randomUUID().toString())
     }
 
     @GetMapping("/master/read")
@@ -96,6 +92,23 @@ class Ctrl(val psersonService: PersonService) {
         return r.await()
     }
 
+    @GetMapping("/thread/is_same")
+    suspend fun threadIsSame(): Long {
+        FsDispatcher.asReadonlyTransaction {
+            val ret1 = FsDispatcher.asAsync {
+                0
+            }
+            val ret2 = FsDispatcher.asAsync {
+                0
+            }
+            val (r1, r2) = awaitAll(ret1, ret2)
+            r1 + r2
+        }
+        FsDispatcher.asRestoration {
+            0
+        }
+        return 0
+    }
 }
 
 @Service
@@ -104,33 +117,28 @@ class PersonService(val personRepository: PersonRepository) {
     @Autowired
     lateinit var _self: PersonService
 
-    suspend fun read(uuid: String) = withUUID { personRepository.countByName(uuid) }
+    suspend fun read(uuid: String) = personRepository.countByName(uuid)
 
     suspend fun readAsync(uuid: String): Deferred<Long> {
-//        println("readAsync 1. ${getUUID()}")
-        return withUUID {
-//            println("readAsync 2. ${getUUID()}")
-            asAsync {
-//                println("readAsync 3. ${getUUID()}")
-                personRepository.countByName(uuid)
-            }
+        return asAsync {
+            personRepository.countByName(uuid)
         }
     }
 
-    suspend fun readFromSlave(uuid: String) = withUUID { asReadonlyTransaction { read(uuid) } }
+    suspend fun readFromSlave(uuid: String) = asReadonlyTransaction { read(uuid) }
 
-    suspend fun readFromSlaveAsync(uuid: String) = asReadonlyTransaction { withUUID { readAsync(uuid) } }
-
-    @Transactional
-    suspend fun write(uuid: String) = withUUID { personRepository.save(Person(name = uuid)) }
+    suspend fun readFromSlaveAsync(uuid: String) = asReadonlyTransaction { readAsync(uuid) }
 
     @Transactional
-    suspend fun writeToSlave(uuid: String) = asReadonlyTransaction { withUUID { personRepository.save(Person(name = uuid)) } }
+    suspend fun write(uuid: String) = asRestoration {
+        personRepository.save(Person(name = uuid))
+    }
+
+    @Transactional
+    suspend fun writeToSlave(uuid: String) = asReadonlyTransaction { personRepository.save(Person(name = uuid)) }
 
     suspend fun readAllFromSlave(uuid: String): Long {
-        println("0. ${getUUID()}")
         return asReadonlyTransaction {
-            println("1. ${getUUID()}")
             val c1 = readAsync(uuid)
             val c2 = readAsync(uuid)
             val c3 = readFromSlaveAsync(uuid)
@@ -141,6 +149,7 @@ class PersonService(val personRepository: PersonRepository) {
 
     suspend fun complexWithReadOnly(uuid: String): Long {
         return asReadonlyTransaction {
+            _self.write(uuid)
             val c1 = readAsync(uuid)
             val c2 = readAsync(uuid)
             val c3 = readFromSlaveAsync(uuid)
@@ -151,115 +160,13 @@ class PersonService(val personRepository: PersonRepository) {
     }
 
     suspend fun complex(uuid: String): Long {
+        _self.write(uuid)
         val c1 = readAsync(uuid)
         val c2 = readAsync(uuid)
         val c3 = readFromSlaveAsync(uuid)
         _self.write(uuid)
         val (r1, r2, r3) = awaitAll(c1, c2, c3)
         return r1 + r2 + r3
-    }
-}
-
-internal object LTC {
-    private val dispatcher = Executors.newFixedThreadPool(8).asCoroutineDispatcher()
-//    private val dispatcher = Dispatchers.Default
-
-    data class LTCData(
-            var state: State? = null,
-            var uuid: String? = null,
-    )
-
-    enum class State {
-        IN_READONLY,
-    }
-
-    private val localThread = ThreadLocal<LTCData?>()
-
-    fun get(): LTCData? {
-        return localThread.get()
-    }
-
-    fun set(value: LTCData?) {
-        println("set - ${Thread.currentThread()} - $value")
-        localThread.set(value)
-    }
-
-    fun remove() {
-        println("clean - ${Thread.currentThread()}")
-        localThread.remove()
-    }
-
-    fun merge(state: State? = null, uuid: String? = null): LTCData? {
-        val data = get()
-        val mergedUuid = uuid?.let { it } ?: data?.uuid
-        val mergedState = state?.let { it } ?: data?.state
-        set(LTCData(state = mergedState, uuid = mergedUuid))
-        return get()
-    }
-
-    fun asContext(state: State? = null) = LTCContext(state)
-
-    fun asCoroutineContext(state: State? = null): CoroutineContext {
-        return if (state == null && get() == null) {
-            dispatcher
-        } else {
-            asContext(state) + dispatcher
-        }
-    }
-
-}
-
-internal class LTCContext(state: LTC.State?) : ThreadContextElement<LTC.LTCData?>, AbstractCoroutineContextElement(LTCContext) {
-    companion object Key : CoroutineContext.Key<LTCContext>
-
-    private val data = LTC.merge(state = state)
-
-    override fun updateThreadContext(context: CoroutineContext): LTC.LTCData? {
-        val old = LTC.get()
-//        println("update ${Thread.currentThread()} $data")
-        LTC.set(data)
-        return old
-    }
-
-    override fun restoreThreadContext(context: CoroutineContext, oldState: LTC.LTCData?) {
-//        println("restore ${Thread.currentThread()} $oldState")
-        if (oldState == null || (oldState?.state == null && oldState?.uuid == null)) {
-            LTC.remove()
-        } else {
-            LTC.set(oldState)
-        }
-    }
-}
-
-object LTCDispatcher {
-
-    fun <T> asAsync(call: () -> T): Deferred<T> = CoroutineScope(LTC.asCoroutineContext()).async {
-        call()
-    }
-
-    suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        assert(LTC.get()?.state != LTC.State.IN_READONLY)
-
-        return withContext(LTC.asContext()) {
-            LTC.merge(uuid = this.coroutineContext[ReactorContext]?.context?.get("uuid"))
-            val r = CoroutineScope(LTC.asCoroutineContext(LTC.State.IN_READONLY)).async {
-                call()
-            }
-            r.await()
-        }
-    }
-
-    suspend fun <T> withUUID(call: suspend () -> T): T {
-        return withContext(LTC.asContext()) {
-            LTC.merge(uuid = this.coroutineContext[ReactorContext]?.context?.get("uuid"))
-            call()
-        }
-    }
-
-    fun isCurrentTransactionReadOnly() = LTC.get()?.state == LTC.State.IN_READONLY
-
-    fun getUUID(): String? {
-        return LTC.get()?.uuid
     }
 }
 
@@ -334,9 +241,9 @@ class Config {
 
     class ReplicationRoutingDataSource : AbstractRoutingDataSource() {
         override fun determineCurrentLookupKey(): Any? {
-//            println("routing: ${LTCDispatcher.isCurrentTransactionReadOnly()} , ${TransactionSynchronizationManager.isCurrentTransactionReadOnly()}")
+            println("routing: readonly(${FsDispatcher.isCurrentTransactionReadOnly()}) , transaction(${TransactionSynchronizationManager.isCurrentTransactionReadOnly()}) ${Thread.currentThread()}")
             return when {
-                LTCDispatcher.isCurrentTransactionReadOnly() -> {
+                FsDispatcher.isCurrentTransactionReadOnly() -> {
                     SLAVE_DB_KEY
                 }
                 TransactionSynchronizationManager.isCurrentTransactionReadOnly() -> {
@@ -351,8 +258,8 @@ class Config {
 
     class LTCJpaTransactionManager : JpaTransactionManager() {
         override fun doCommit(status: DefaultTransactionStatus) {
-//            println("commit: ${LTCDispatcher.isCurrentTransactionReadOnly()} , ${TransactionSynchronizationManager.isCurrentTransactionReadOnly()}")
-            if (LTCDispatcher.isCurrentTransactionReadOnly()) {
+            println("commit: readonly(${FsDispatcher.isCurrentTransactionReadOnly()}) , transaction(${TransactionSynchronizationManager.isCurrentTransactionReadOnly()}) ${Thread.currentThread()}")
+            if (FsDispatcher.isCurrentTransactionReadOnly()) {
                 throw Exception("readonly transaction")
             } else {
                 super.doCommit(status)

@@ -18,7 +18,7 @@ services:
     volumes:
       - ./db:/db
       - ./seeding.sh:/docker-entrypoint-initdb.d/seeding.sh
-      - ./mysql/conf:/etc/mysql/conf.d
+      - ./mysql/conf-slave:/etc/mysql/conf.d
     environment:
       MYSQL_ROOT_PASSWORD: 1234
       TZ: "Asia/Seoul"

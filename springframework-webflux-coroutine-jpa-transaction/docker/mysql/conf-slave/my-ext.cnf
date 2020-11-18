@@ -1,5 +1,4 @@
 [mysqld]
-read_only                       =1
 log_error                       =/var/log/mysql/mysql_error.log
 general_log                     =1
 slow_query_log                  =1

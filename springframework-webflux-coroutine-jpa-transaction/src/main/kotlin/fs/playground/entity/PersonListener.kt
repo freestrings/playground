@@ -1,7 +1,7 @@
 package fs.playground.entity
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import fs.playground.LTCDispatcher
+import fs.playground.FsDispatcher
 import javax.persistence.PrePersist
 import javax.persistence.PreRemove
 import javax.persistence.PreUpdate
@@ -14,7 +14,7 @@ class PersonListener {
     @PrePersist
     @PreRemove
     fun beforeUpdate(entity: Any) {
-        println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(SaveBefore(uuid = LTCDispatcher.getUUID(), entity = entity)))
+        println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(SaveBefore(uuid = FsDispatcher.getUUID(), entity = entity)))
     }
 
     data class SaveBefore(
