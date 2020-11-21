@@ -2,136 +2,149 @@ package fs.playground
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.ReactorContext
-import org.springframework.util.Assert
-import java.util.concurrent.Executors
+import kotlinx.coroutines.reactor.asCoroutineDispatcher
+import reactor.core.scheduler.Schedulers
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
-open class FsContext : AbstractCoroutineContextElement(FsContext) {
-    companion object Key : CoroutineContext.Key<FsContext>
+fun debugPrint(flag: String, uuid: String? = null, readOnly: String? = null) {
+    val uuidValue = AsyncFsContext.CTX.getUuid() ?: "#$uuid"
+    val readValule = if (AsyncFsContext.CTX.isReadOnly()) "true" else "#${readOnly ?: "false"}"
+//    println("${flag.padEnd(15)}${Thread.currentThread().toString().padEnd(50)}${uuidValue.padEnd(50)}$readValule")
 }
 
-object READONLY {
-
-    private val localThread = ThreadLocal<Boolean>()
-
-    fun get(): Boolean {
-        return localThread.get() == true
-    }
-
-    fun set() {
-        localThread.set(true)
-    }
-
-    fun remove() {
-        println("remove ${Thread.currentThread()}")
-        localThread.remove()
-    }
+class FsDefaultContext : AbstractCoroutineContextElement(FsDefaultContext) {
+    companion object Key : CoroutineContext.Key<FsDefaultContext>
 }
 
-class ReadOnlyContext(val value: Boolean? = null) : ThreadContextElement<Boolean?>, AbstractCoroutineContextElement(ReadOnlyContext) {
-    companion object Key : CoroutineContext.Key<ReadOnlyContext>
+class AsyncFsContext(val uuid: String, private var readonly: Int = 0) :
+        ThreadContextElement<Boolean>,
+        AbstractCoroutineContextElement(AsyncFsContext) {
 
-//    private val data = if (value) true else READONLY.get()
+    companion object Key : CoroutineContext.Key<AsyncFsContext>
 
-    override fun updateThreadContext(context: CoroutineContext): Boolean? {
-//        println("## update ${Thread.currentThread()}")
-        val old = READONLY.get()
-        if (value == true) {
-            READONLY.set()
+    override fun updateThreadContext(context: CoroutineContext): Boolean {
+        debugPrint("Update", uuid, readonly.toString())
+        val readonly = CTX.isReadOnly()
+        CTX.setUuid(uuid)
+        if (isReadOnly()) {
+            debugPrint("Update-S", uuid, this.readonly.toString())
+            CTX.setReadOnly()
         }
-        return old
+        return readonly
     }
 
-    override fun restoreThreadContext(context: CoroutineContext, oldState: Boolean?) {
-        if (oldState == true) {
-            READONLY.set()
+    override fun restoreThreadContext(context: CoroutineContext, oldState: Boolean) {
+        debugPrint("Restore", uuid, readonly.toString())
+
+        if (oldState) {
+            CTX.setReadOnly()
         } else {
-//            println("## remove ${Thread.currentThread()}")
-            READONLY.remove()
+            debugPrint("Restore-C", uuid, readonly.toString())
+            CTX.clearReadOnly()
         }
+
+        CTX.setUuid(uuid)
+    }
+
+    fun incReadOnly() {
+        readonly++
+        debugPrint("INC", uuid, readonly.toString())
+    }
+
+    fun decReadOnly() {
+        readonly--
+        debugPrint("DEC", uuid, readonly.toString())
+    }
+
+    fun isReadOnly() = readonly != 0
+
+    object CTX {
+
+        private val readOnly = ThreadLocal<String?>()
+        private val uuid = ThreadLocal<String?>()
+
+        fun setReadOnly() {
+            debugPrint("Set")
+            readOnly.set("true")
+        }
+
+        fun isReadOnly() = readOnly.get() == "true"
+
+        fun clearReadOnly() {
+            debugPrint("Clear")
+            readOnly.remove()
+        }
+
+        fun setUuid(value: String) {
+            uuid.set(value)
+        }
+
+        fun clearUuid() {
+            uuid.remove()
+        }
+
+        fun getUuid() = uuid.get()
+
     }
 }
 
 object FsDispatcher {
 
-    private val UUIDS = ThreadLocal<String>()
+    private val threadPool = Schedulers.boundedElastic().asCoroutineDispatcher()
 
-    private val threadPool = Executors.newFixedThreadPool(8).asCoroutineDispatcher()
+    suspend fun <T> asFsContext(call: suspend () -> T): T {
+        return withContext(getAsyncFsContext()) {
+            call()
+        }
+    }
 
-    suspend fun <T> asAsync(call: () -> T): Deferred<T> {
-        return withContext(FsContext() + threadPool) {
-            val outerName1 = Thread.currentThread().name
+    suspend fun <T> asNewAsync(call: suspend () -> T): Deferred<T> {
+        val fsContext = getAsyncFsContext()
+        val isReadOnly = fsContext.isReadOnly()
+        return CoroutineScope(fsContext + getDefaultContext()).async {
+            if (isReadOnly) {
+                debugPrint("NewAsync")
+                AsyncFsContext.CTX.setReadOnly()
+            }
+            call()
+        }
+    }
 
-            val ret = CoroutineScope(coroutineContext + threadPool).async {
-                val name1 = Thread.currentThread().name
-                val uuid: String = coroutineContext[ReactorContext]!!.context!!.get("uuid")
-                UUIDS.set(uuid)
-
-                val ret = try {
-                    call()
-                } finally {
-                    val name2 = Thread.currentThread().name
-                    Assert.isTrue(name1 == name2, "$name1 != $name2")
-                    UUIDS.remove()
+    /**
+     * asNewReadOnly { asNewAsync {} } = X
+     * asNewAsync { asNewReadOnly {} } = O
+     * @return Deferred 타입 리턴이 리턴되면 동작안됨
+     */
+    suspend fun <T> asNewReadOnly(call: suspend () -> T): T {
+        return withContext(getAsyncFsContext()) {
+            val fsContext: AsyncFsContext = findAsyncFsContext(coroutineContext)
+            fsContext.incReadOnly()
+            try {
+                debugPrint("N-ReadOnly")
+                if (fsContext.isReadOnly()) {
+                    AsyncFsContext.CTX.setReadOnly()
                 }
-
-                Assert.isTrue(UUIDS.get() == null, "unclear uuid: ${UUIDS.get()}")
-                ret
-            }
-
-            val outerName2 = Thread.currentThread().name
-            Assert.isTrue(outerName1 == outerName2, "$outerName1 != $outerName2")
-            ret
-        }
-    }
-
-    suspend fun <T> asReadonlyTransaction(call: suspend () -> T): T {
-        return withContext(FsContext() + threadPool) {
-            val map: MutableMap<String, Any> = coroutineContext[ReactorContext]!!.context!!.get("map")
-            val readonlyCount = map.getOrDefault("readonly", "0").toString().toInt()
-            map["readonly"] = readonlyCount + 1
-            val ret = try {
-                withContext(ReadOnlyContext(true) + coroutineContext) { call() }
+                call()
             } finally {
-                map["readonly"] = map["readonly"].toString().toInt() - 1
+                fsContext.decReadOnly()
+                if (!fsContext.isReadOnly()) {
+                    AsyncFsContext.CTX.clearReadOnly()
+                }
             }
-//            println("readonly done: $readonlyCount")
-            ret
         }
     }
 
-    suspend fun <T> asRestoration(call: (String) -> T): T {
-        return withContext(FsContext()) {
-            val name1 = Thread.currentThread().name
-            val uuid: String = coroutineContext[ReactorContext]!!.context!!.get("uuid")
-            UUIDS.set(uuid)
-
-            val map: MutableMap<String, Any> = coroutineContext[ReactorContext]!!.context!!.get("map")
-            val readonlyCount = map.getOrDefault("readonly", "0").toString().toInt()
-//            println("readonly - asRestoration $readonlyCount")
-            if (readonlyCount == 0) {
-                READONLY.remove()
-            }
-
-            val ret = try {
-                call(uuid)
-            } finally {
-                val name2 = Thread.currentThread().name
-                Assert.isTrue(name1 == name2, "$name1 != $name2")
-                UUIDS.remove()
-            }
-
-            Assert.isTrue(UUIDS.get() == null, "unclear uuid: ${UUIDS.get()}")
-            ret
+    private suspend fun getAsyncFsContext(): AsyncFsContext {
+        return withContext(getDefaultContext()) {
+            findAsyncFsContext(coroutineContext)
         }
     }
 
-    fun isCurrentTransactionReadOnly(): Boolean {
-        return READONLY.get()
+    private fun findAsyncFsContext(context: CoroutineContext): AsyncFsContext {
+        return context[AsyncFsContext] ?: context[ReactorContext]!!.context!![AsyncFsContext]
     }
 
-    fun getUUID(): String? {
-        return UUIDS.get()
-    }
+    private fun getDefaultContext() = FsDefaultContext() + threadPool
+
 }
