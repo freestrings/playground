@@ -1,8 +1,7 @@
 package fs.playground
 
-import fs.playground.FsDispatcher.asFsContext
-import fs.playground.FsDispatcher.asNewAsync
-import fs.playground.FsDispatcher.asNewReadOnly
+import fs.playground.FsDispatcher.asAsync
+import fs.playground.FsDispatcher.withSlave
 import fs.playground.entity.Person
 import fs.playground.repository.PersonRepository
 import kotlinx.coroutines.Deferred
@@ -32,90 +31,72 @@ fun main(args: Array<String>) {
 class Ctrl(val personService: PersonService, val newPersionService: NewPersonService) {
 
     @GetMapping("/complex/readonly")
-    suspend fun complexReadOnlyWithWrite() = asFsContext {
-        personService.complexWithReadOnly(UUID.randomUUID().toString())
-    }
+    suspend fun complexReadOnlyWithWrite() = personService.complexWithReadOnly(UUID.randomUUID().toString())
 
     @GetMapping("/complex")
-    suspend fun complexWithWrite(@RequestParam("id") id: String) = asFsContext {
-        personService.complex(id)
-    }
+    suspend fun complexWithWrite(@RequestParam("id") id: String) = personService.complex(id)
 
     @GetMapping("/master/read")
-    suspend fun masterRead() = asFsContext {
-        personService.read("master - ${UUID.randomUUID()}")
-    }
+    suspend fun masterRead() = personService.read("master - ${UUID.randomUUID()}")
 
     @GetMapping("/master/write")
-    suspend fun masterWrite() = asFsContext {
-        personService.write(UUID.randomUUID().toString())
-    }
+    suspend fun masterWrite() = personService.write(UUID.randomUUID().toString())
 
     @GetMapping("/slave/read")
-    suspend fun readFromSlave() = asFsContext {
-        personService.readFromSlave("slave - ${UUID.randomUUID()}")
-    }
+    suspend fun readFromSlave() = personService.readFromSlave("slave - ${UUID.randomUUID()}")
 
     @GetMapping("/slave/write")
-    suspend fun writeToSlave() = asFsContext {
-        personService.writeToSlave(UUID.randomUUID().toString())
-    }
+    suspend fun writeToSlave() = personService.writeToSlave(UUID.randomUUID().toString())
 
     @GetMapping("/slave/write2")
-    suspend fun writeToSlaveAsReadonl2() = asFsContext {
-        asNewReadOnly { personService.write(UUID.randomUUID().toString()) }
-    }
+    suspend fun writeToSlaveAsReadonl2() = withSlave { personService.write(UUID.randomUUID().toString()) }
 
     @GetMapping("/slave/readall")
-    suspend fun readAllFromSlave() = asFsContext {
-        personService.readAllFromSlave("slaveall - ${UUID.randomUUID()}")
-    }
+    suspend fun readAllFromSlave() = personService.readAllFromSlave("slaveall - ${UUID.randomUUID()}")
 
     @GetMapping("/slave/read/async")
-    suspend fun readFromSlaveAsyc() = asFsContext {
+    suspend fun readFromSlaveAsyc(): Long {
         val r = personService.readFromSlaveAsync(UUID.randomUUID().toString())
-        r.await()
+        return r.await()
     }
 
     @ExperimentalTime
     @GetMapping("/bench/async")
-    suspend fun benchAsync() = asFsContext {
-        measureTime {
-            asNewReadOnly {
-                val r1 = asNewAsync {
-                    debugPrint("1.")
-                    Thread.sleep(3000)
-                    debugPrint("2.")
-                    personService.personRepository.countByName("slave1")
-                }
-                val r2 = asNewAsync {
-                    debugPrint("1.1")
-                    Thread.sleep(3000)
-                    debugPrint("1.2")
-                    personService.personRepository.countByName("slave2")
-                }
-                awaitAll(r1, r2)
-                personService.personRepository.countByName("slave3")
+    suspend fun benchAsync() = measureTime {
+        withSlave {
+            val r1 = asAsync {
+                debugPrint("1.")
+                Thread.sleep(3000)
+                debugPrint("2.")
+                personService.personRepository.countByName("slave1")
             }
-            debugPrint("3.")
-            personService.personRepository.countByName("master4")
-        }.toInt(DurationUnit.MILLISECONDS)
-    }
+            val r2 = asAsync {
+                debugPrint("1.1")
+                Thread.sleep(3000)
+                debugPrint("1.2")
+                personService.personRepository.countByName("slave2")
+            }
+            awaitAll(r1, r2)
+            personService.personRepository.countByName("slave3")
+        }
+        debugPrint("3.")
+        personService.personRepository.countByName("master4")
+    }.toInt(DurationUnit.MILLISECONDS)
 
     @GetMapping("/new/async")
-    suspend fun newAsync() = asFsContext {
-        val a = asNewAsync {
+    suspend fun newAsync() {
+        val a = asAsync {
             debugPrint("1")
 
-            asNewReadOnly {
+            withSlave {
                 debugPrint("2")
 
-                val a = asNewAsync {
+                val a = asAsync {
                     Thread.sleep(1000)
                     debugPrint("3")
                 }
 
-                val b = asNewAsync {
+                val b = asAsync {
                     Thread.sleep(1000)
                     debugPrint("3-1")
                 }
@@ -132,48 +113,44 @@ class Ctrl(val personService: PersonService, val newPersionService: NewPersonSer
     }
 
     @GetMapping("/new/async/write")
-    suspend fun newAsyncWrite() = asFsContext {
-        val a = asNewAsync {
+    suspend fun newAsyncWrite(): String {
+        val a = asAsync {
             newPersionService.write(UUID.randomUUID().toString())
         }
-        a.await()
+        return a.await().name
     }
 
     @GetMapping("/new/async/write/readonly/with_error")
-    suspend fun newAsyncWriteReadOnlyWithError() = asFsContext {
-        val a = asNewAsync {
-            asNewReadOnly {
+    suspend fun newAsyncWriteReadOnlyWithError(): String {
+        val a = asAsync {
+            withSlave {
                 debugPrint("1")
                 newPersionService.write(UUID.randomUUID().toString())
             }
         }
-        a.await()
+        return a.await().name
     }
 
     @GetMapping("/new/async/readonly")
-    suspend fun newAsyncWriteReadOnly() = asFsContext {
-        asNewReadOnly {
-            val a = asNewAsync {
-                asNewReadOnly {
-                    debugPrint("1")
-                    newPersionService.read("s-${UUID.randomUUID()}")
-                }
-                debugPrint("2")
-                newPersionService.read("m1-${UUID.randomUUID()}")
+    suspend fun newAsyncWriteReadOnly() = withSlave {
+        val a = asAsync {
+            withSlave {
+                debugPrint("1")
+                newPersionService.read("s-${UUID.randomUUID()}")
             }
-            debugPrint("3")
-            newPersionService.read("m2-${UUID.randomUUID()}")
-            a.await()
+            debugPrint("2")
+            newPersionService.read("m1-${UUID.randomUUID()}")
         }
+        debugPrint("3")
+        newPersionService.read("m2-${UUID.randomUUID()}")
+        a.await()
     }
 
     @GetMapping("/new/simple")
-    suspend fun newAsyncSimple() = asFsContext {
-        newPersionService.read("${UUID.randomUUID()}")
-    }
+    suspend fun newAsyncSimple() = newPersionService.read("${UUID.randomUUID()}")
 
     @GetMapping("/new/default")
-    suspend fun newDefault() = asFsContext { newPersionService.write("${UUID.randomUUID()}") }
+    suspend fun newDefault() = newPersionService.write("${UUID.randomUUID()}")
 
 }
 
@@ -195,25 +172,25 @@ class PersonService(val personRepository: PersonRepository) {
     suspend fun read(uuid: String) = personRepository.countByName(uuid)
 
     suspend fun readAsync(uuid: String): Deferred<Long> {
-        return asNewAsync {
+        return asAsync {
             personRepository.countByName(uuid)
         }
     }
 
-    suspend fun readFromSlave(uuid: String) = asNewReadOnly { read(uuid) }
+    suspend fun readFromSlave(uuid: String) = withSlave { read(uuid) }
 
-    suspend fun readFromSlaveAsync(uuid: String) = asNewReadOnly { readAsync(uuid) }
+    suspend fun readFromSlaveAsync(uuid: String) = withSlave { readAsync(uuid) }
 
     @Transactional
     suspend fun write(uuid: String) = personRepository.save(Person(name = uuid))
 
     @Transactional
-    suspend fun writeToSlave(uuid: String) = asNewReadOnly {
+    suspend fun writeToSlave(uuid: String) = withSlave {
         personRepository.save(Person(name = uuid))
     }
 
     suspend fun readAllFromSlave(uuid: String): Long {
-        return asNewReadOnly {
+        return withSlave {
             val c1 = readAsync(uuid)
             val c2 = readAsync(uuid)
             val c3 = readFromSlaveAsync(uuid)
@@ -223,7 +200,7 @@ class PersonService(val personRepository: PersonRepository) {
     }
 
     suspend fun complexWithReadOnly(uuid: String): Long {
-        return asNewReadOnly {
+        return withSlave {
             _self.write(uuid)
             val c1 = readAsync(uuid)
             val c2 = readAsync(uuid)
@@ -234,13 +211,13 @@ class PersonService(val personRepository: PersonRepository) {
         }
     }
 
-    suspend fun complex(uuid: String) {
+    suspend fun complex(uuid: String): Long {
         _self.write("mw1-$uuid")
         val c1 = readAsync("m1-$uuid")
         val c2 = readAsync("m2-$uuid")
         val c3 = readFromSlaveAsync("s-$uuid")
         _self.write("mw2-$uuid")
         val (r1, r2, r3) = awaitAll(c1, c2, c3)
-        r1 + r2 + r3
+        return r1 + r2 + r3
     }
 }

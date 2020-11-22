@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineDispatcher
 import reactor.core.scheduler.Schedulers
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
@@ -17,7 +18,7 @@ class FsDefaultContext : AbstractCoroutineContextElement(FsDefaultContext) {
     companion object Key : CoroutineContext.Key<FsDefaultContext>
 }
 
-class AsyncFsContext(val uuid: String, private var readonly: Int = 0) :
+class AsyncFsContext(val uuid: String, private var readonly: AtomicInteger = AtomicInteger(0)) :
         ThreadContextElement<Boolean>,
         AbstractCoroutineContextElement(AsyncFsContext) {
 
@@ -25,8 +26,9 @@ class AsyncFsContext(val uuid: String, private var readonly: Int = 0) :
 
     override fun updateThreadContext(context: CoroutineContext): Boolean {
         debugPrint("Update", uuid, readonly.toString())
-        val readonly = CTX.isReadOnly()
         CTX.setUuid(uuid)
+
+        val readonly = CTX.isReadOnly()
         if (isReadOnly()) {
             debugPrint("Update-S", uuid, this.readonly.toString())
             CTX.setReadOnly()
@@ -44,32 +46,31 @@ class AsyncFsContext(val uuid: String, private var readonly: Int = 0) :
             CTX.clearReadOnly()
         }
 
-        CTX.setUuid(uuid)
     }
 
     fun incReadOnly() {
-        readonly++
+        readonly.incrementAndGet()
         debugPrint("INC", uuid, readonly.toString())
     }
 
     fun decReadOnly() {
-        readonly--
+        readonly.decrementAndGet()
         debugPrint("DEC", uuid, readonly.toString())
     }
 
-    fun isReadOnly() = readonly != 0
+    fun isReadOnly() = readonly.get() != 0
 
     object CTX {
 
-        private val readOnly = ThreadLocal<String?>()
+        private val readOnly = ThreadLocal<Boolean?>()
         private val uuid = ThreadLocal<String?>()
 
         fun setReadOnly() {
             debugPrint("Set")
-            readOnly.set("true")
+            readOnly.set(true)
         }
 
-        fun isReadOnly() = readOnly.get() == "true"
+        fun isReadOnly() = readOnly.get() == true
 
         fun clearReadOnly() {
             debugPrint("Clear")
@@ -78,10 +79,6 @@ class AsyncFsContext(val uuid: String, private var readonly: Int = 0) :
 
         fun setUuid(value: String) {
             uuid.set(value)
-        }
-
-        fun clearUuid() {
-            uuid.remove()
         }
 
         fun getUuid() = uuid.get()
@@ -93,19 +90,15 @@ object FsDispatcher {
 
     private val threadPool = Schedulers.boundedElastic().asCoroutineDispatcher()
 
-    suspend fun <T> asFsContext(call: suspend () -> T): T {
-        return withContext(getAsyncFsContext()) {
-            call()
-        }
-    }
-
-    suspend fun <T> asNewAsync(call: suspend () -> T): Deferred<T> {
+    suspend fun <T> asAsync(call: suspend () -> T): Deferred<T> {
         val fsContext = getAsyncFsContext()
         val isReadOnly = fsContext.isReadOnly()
         return CoroutineScope(fsContext + getDefaultContext()).async {
             if (isReadOnly) {
                 debugPrint("NewAsync")
                 AsyncFsContext.CTX.setReadOnly()
+            } else {
+                AsyncFsContext.CTX.clearReadOnly()
             }
             call()
         }
@@ -116,7 +109,7 @@ object FsDispatcher {
      * asNewAsync { asNewReadOnly {} } = O
      * @return Deferred 타입 리턴이 리턴되면 동작안됨
      */
-    suspend fun <T> asNewReadOnly(call: suspend () -> T): T {
+    suspend fun <T> withSlave(call: suspend () -> T): T {
         return withContext(getAsyncFsContext()) {
             val fsContext: AsyncFsContext = findAsyncFsContext(coroutineContext)
             fsContext.incReadOnly()
