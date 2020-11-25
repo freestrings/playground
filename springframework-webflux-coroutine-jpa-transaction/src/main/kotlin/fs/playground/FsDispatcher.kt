@@ -104,11 +104,6 @@ object FsDispatcher {
         }
     }
 
-    /**
-     * asNewReadOnly { asNewAsync {} } = X
-     * asNewAsync { asNewReadOnly {} } = O
-     * @return Deferred 타입 리턴이 리턴되면 동작안됨
-     */
     suspend fun <T> withSlave(call: suspend () -> T): T {
         return withContext(getAsyncFsContext()) {
             val fsContext: AsyncFsContext = findAsyncFsContext(coroutineContext)

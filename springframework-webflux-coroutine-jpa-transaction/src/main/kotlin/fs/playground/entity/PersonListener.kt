@@ -14,8 +14,8 @@ class PersonListener {
     @PrePersist
     @PreRemove
     fun beforeUpdate(entity: Any) {
-        val p = entity as Person
-        println("${AsyncFsContext.CTX.getUuid()} - ${p.name} ${p.name.contains(AsyncFsContext.CTX.getUuid()!!)} ${Thread.currentThread()}")
+//        val p = entity as Person
+//        println("${AsyncFsContext.CTX.getUuid()} - ${p.name} ${p.name.contains(AsyncFsContext.CTX.getUuid()!!)} ${Thread.currentThread()}")
     }
 
     data class SaveBefore(

@@ -12,28 +12,16 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter
-import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
-import javax.validation.constraints.NotNull
 
-@SpringBootApplication
+@SpringBootApplication(exclude = [DataSourceAutoConfiguration::class])
 class SpringframeworkMvcApplication
 
 fun main(args: Array<String>) {
     runApplication<SpringframeworkMvcApplication>(*args)
 }
 
-@Service
-@Validated
-class ValidationAnnotationTest {
-
-    fun check(@NotNull name: String?) {
-        println("####${name}")
-    }
-}
-
 @RestController
-class Ctrl(@Autowired val validationAnnotationTest: ValidationAnnotationTest) {
+class Ctrl {
 
     @GetMapping("/notnull")
     fun validationAnnotationTest() {
@@ -48,25 +36,5 @@ class Ctrl(@Autowired val validationAnnotationTest: ValidationAnnotationTest) {
     @GetMapping("/testb")
     fun testbAttribute(request: HttpServletRequest) {
         println(request.getAttribute("testa"))
-    }
-}
-
-@Configuration
-class InterceptorConfig(private val interceptorTest: InterceptorTest) : WebMvcConfigurer {
-
-    override fun addInterceptors(registry: InterceptorRegistry) {
-        super.addInterceptors(registry)
-        registry.addInterceptor(interceptorTest)
-    }
-}
-
-@Component
-class InterceptorTest : HandlerInterceptorAdapter() {
-
-    override fun preHandle(request: HttpServletRequest, response: HttpServletResponse, handler: Any): Boolean {
-        if (request.requestURI.startsWith("/testa")) {
-            request.setAttribute("testa", true);
-        }
-        return true
     }
 }

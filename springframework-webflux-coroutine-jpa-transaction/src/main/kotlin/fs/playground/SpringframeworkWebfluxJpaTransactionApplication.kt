@@ -28,7 +28,7 @@ fun main(args: Array<String>) {
 }
 
 @RestController
-class Ctrl(val personService: PersonService, val newPersionService: NewPersonService) {
+class Ctrl(val personService: PersonService, val newPersionService: NewPersonService, val personRepository: PersonRepository) {
 
     @GetMapping("/complex/readonly")
     suspend fun complexReadOnlyWithWrite() = personService.complexWithReadOnly(UUID.randomUUID().toString())
@@ -40,7 +40,11 @@ class Ctrl(val personService: PersonService, val newPersionService: NewPersonSer
     suspend fun masterRead() = personService.read("master - ${UUID.randomUUID()}")
 
     @GetMapping("/master/write")
-    suspend fun masterWrite() = personService.write(UUID.randomUUID().toString())
+    @Transactional
+    suspend fun masterWrite() : Person {
+        println(Thread.currentThread())
+        return personRepository.save(Person(name = "1"))
+    }
 
     @GetMapping("/slave/read")
     suspend fun readFromSlave() = personService.readFromSlave("slave - ${UUID.randomUUID()}")
@@ -212,6 +216,7 @@ class PersonService(val personRepository: PersonRepository) {
     }
 
     suspend fun complex(uuid: String): Long {
+        println(Thread.currentThread())
         _self.write("mw1-$uuid")
         val c1 = readAsync("m1-$uuid")
         val c2 = readAsync("m2-$uuid")
