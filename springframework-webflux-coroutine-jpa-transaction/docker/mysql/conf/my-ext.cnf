@@ -1,5 +1,12 @@
 [mysqld]
-general_log                     =1
-slow_query_log                  =1
-long_query_time                 =2
-log_queries_not_using_indexes   =1
+pid-file = /var/run/mysqld/mysqld.pid
+socket = /var/run/mysqld/mysqld.sock
+datadir = /var/lib/mysql
+server-id = 1
+log-bin = mysql-bin.log
+tmpdir = /tmp
+binlog_format = ROW
+max_binlog_size = 500M
+sync_binlog = 1
+expire-logs-days = 7
+slow_query_log

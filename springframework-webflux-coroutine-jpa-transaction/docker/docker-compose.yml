@@ -2,28 +2,39 @@ version: '3'
 services:
   mysql-master:
     image: mysql:8.0.21
-    restart: always
+    restart: 'no'
     volumes:
-      - ./db:/db
-      - ./seeding.sh:/docker-entrypoint-initdb.d/seeding.sh
       - ./mysql/conf:/etc/mysql/conf.d
     environment:
       MYSQL_ROOT_PASSWORD: 1234
       TZ: "Asia/Seoul"
     ports:
       - "33060:3306"
+
   mysql-slave:
     image: mysql:8.0.21
-    restart: always
+    restart: 'no'
     volumes:
-      - ./db:/db
-      - ./seeding.sh:/docker-entrypoint-initdb.d/seeding.sh
       - ./mysql/conf-slave:/etc/mysql/conf.d
     environment:
       MYSQL_ROOT_PASSWORD: 1234
-      MYSQL_DATABASE: testa
       MYSQL_USER: testuser
       MYSQL_PASSWORD: 1234
       TZ: "Asia/Seoul"
     ports:
       - "33061:3306"
+
+
+  wait-for-mysql-master:
+    image: mysql:8.0.21
+    volumes:
+      - ./wait-for-mysql-master/wait.sh:/wait.sh
+    command: '/wait.sh'
+
+
+  wait-for-mysql-slave:
+    image: mysql:8.0.21
+    volumes:
+      - ./db:/db
+      - ./wait-for-mysql-slave/wait.sh:/wait.sh
+    command: '/wait.sh'

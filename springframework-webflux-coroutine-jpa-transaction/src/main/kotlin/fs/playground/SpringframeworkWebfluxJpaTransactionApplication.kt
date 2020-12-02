@@ -186,7 +186,7 @@ class PersonService(val personRepository: PersonRepository) {
     suspend fun readFromSlaveAsync(uuid: String) = withSlave { readAsync(uuid) }
 
     @Transactional
-    suspend fun write(uuid: String) = personRepository.save(Person(name = uuid))
+    suspend fun write(uuid: String) = personRepository.save(Person(id = uuid))
 
     @Transactional
     suspend fun writeToSlave(uuid: String) = withSlave {
@@ -215,14 +215,17 @@ class PersonService(val personRepository: PersonRepository) {
         }
     }
 
+    @Transactional
     suspend fun complex(uuid: String): Long {
         println(Thread.currentThread())
-        _self.write("mw1-$uuid")
-        val c1 = readAsync("m1-$uuid")
-        val c2 = readAsync("m2-$uuid")
-        val c3 = readFromSlaveAsync("s-$uuid")
-        _self.write("mw2-$uuid")
-        val (r1, r2, r3) = awaitAll(c1, c2, c3)
-        return r1 + r2 + r3
+        personRepository.save(Person(id = uuid))
+//        _self.write("mw1-$uuid")
+//        val c1 = readAsync("m1-$uuid")
+//        val c2 = readAsync("m2-$uuid")
+//        val c3 = readFromSlaveAsync("s-$uuid")
+//        _self.write("mw2-$uuid")
+//        val (r1, r2, r3) = awaitAll(c1, c2, c3)
+//        return r1 + r2 + r3
+        return 0
     }
 }

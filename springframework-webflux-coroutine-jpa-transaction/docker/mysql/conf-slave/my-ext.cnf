@@ -1,6 +1,10 @@
 [mysqld]
-read_only
-general_log                     =1
-slow_query_log                  =1
-long_query_time                 =2
-log_queries_not_using_indexes   =1
+log_bin = mysql-bin.log
+server-id = 2
+read_only = 1
+tmpdir = /tmp
+binlog_format = ROW
+max_binlog_size = 500M
+sync_binlog = 1
+expire-logs-days = 7
+slow_query_log   = 1
