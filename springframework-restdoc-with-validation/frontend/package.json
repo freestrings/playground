@@ -8,7 +8,7 @@
     "build": "vue-cli-service build"
   },
   "dependencies": {
-    "axios": "^0.18.0",
+    "axios": "^0.21.1",
     "vue": "^2.5.17",
     "vue-loading-spinner": "^1.0.11",
     "vue-lodash": "^2.0.0",
