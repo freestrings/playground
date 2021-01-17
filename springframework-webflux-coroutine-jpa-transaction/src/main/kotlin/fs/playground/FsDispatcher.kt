@@ -4,6 +4,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.ReactorContext
 import kotlinx.coroutines.reactor.asCoroutineDispatcher
 import reactor.core.scheduler.Schedulers
+import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
@@ -18,15 +19,19 @@ class FsDefaultContext : AbstractCoroutineContextElement(FsDefaultContext) {
     companion object Key : CoroutineContext.Key<FsDefaultContext>
 }
 
-class AsyncFsContext(val uuid: String, private var readonly: AtomicInteger = AtomicInteger(0)) :
-        ThreadContextElement<Boolean>,
-        AbstractCoroutineContextElement(AsyncFsContext) {
+class AsyncFsContext(
+    val uuid: String? = null,
+    private var readonly: AtomicInteger = AtomicInteger(0),
+    private val data: MutableMap<String, Any> = mutableMapOf()
+) :
+    ThreadContextElement<Boolean>,
+    AbstractCoroutineContextElement(AsyncFsContext) {
 
     companion object Key : CoroutineContext.Key<AsyncFsContext>
 
     override fun updateThreadContext(context: CoroutineContext): Boolean {
         debugPrint("Update", uuid, readonly.toString())
-        CTX.setUuid(uuid)
+        if (uuid != null) CTX.setUuid(uuid)
 
         val readonly = CTX.isReadOnly()
         if (isReadOnly()) {
@@ -60,6 +65,14 @@ class AsyncFsContext(val uuid: String, private var readonly: AtomicInteger = Ato
 
     fun isReadOnly() = readonly.get() != 0
 
+    fun putData(key: String, value: Any) {
+        data[key] = value
+    }
+
+    fun getAllData(): Map<String, Any> {
+        return data
+    }
+
     object CTX {
 
         private val readOnly = ThreadLocal<Boolean?>()
@@ -90,17 +103,28 @@ object FsDispatcher {
 
     private val threadPool = Schedulers.boundedElastic().asCoroutineDispatcher()
 
-    suspend fun <T> asAsync(call: suspend () -> T): Deferred<T> {
-        val fsContext = getAsyncFsContext()
-        val isReadOnly = fsContext.isReadOnly()
-        return CoroutineScope(fsContext + getDefaultContext()).async {
-            if (isReadOnly) {
-                debugPrint("NewAsync")
-                AsyncFsContext.CTX.setReadOnly()
-            } else {
-                AsyncFsContext.CTX.clearReadOnly()
+    suspend fun <T> asAsync(call: () -> T): Deferred<T> {
+        return coroutineScope {
+            val fsContext: AsyncFsContext = findAsyncFsContext(coroutineContext)
+            val isReadOnly = fsContext.isReadOnly()
+            CoroutineScope(fsContext + threadPool).async {
+                if (isReadOnly) {
+                    debugPrint("NewAsync")
+                    AsyncFsContext.CTX.setReadOnly()
+                } else {
+                    AsyncFsContext.CTX.clearReadOnly()
+                }
+                call()
             }
-            call()
+        }
+    }
+
+    suspend fun deferredContext(call: suspend () -> Pair<String, String>) {
+        return coroutineScope {
+            val fsContext: AsyncFsContext = findAsyncFsContext(coroutineContext)
+            val pair = call()
+            println("return ${pair.second} - ${Thread.currentThread()}")
+            fsContext.putData(pair.first, pair.second)
         }
     }
 
@@ -110,7 +134,7 @@ object FsDispatcher {
      * @return Deferred 타입 리턴이 리턴되면 동작안됨
      */
     suspend fun <T> withSlave(call: suspend () -> T): T {
-        return withContext(getAsyncFsContext()) {
+        return coroutineScope {
             val fsContext: AsyncFsContext = findAsyncFsContext(coroutineContext)
             fsContext.incReadOnly()
             try {
@@ -128,16 +152,19 @@ object FsDispatcher {
         }
     }
 
-    private suspend fun getAsyncFsContext(): AsyncFsContext {
-        return withContext(getDefaultContext()) {
-            findAsyncFsContext(coroutineContext)
-        }
-    }
+//    private suspend fun getAsyncFsContext(): AsyncFsContext {
+//        return withContext(getDefaultContext()) {
+//            findAsyncFsContext(coroutineContext)
+//        }
+//        return coroutineScope {
+//            findAsyncFsContext(coroutineContext)
+//        }
+//    }
 
     private fun findAsyncFsContext(context: CoroutineContext): AsyncFsContext {
         return context[AsyncFsContext] ?: context[ReactorContext]!!.context!![AsyncFsContext]
     }
 
-    private fun getDefaultContext() = FsDefaultContext() + threadPool
+//    private fun getDefaultContext() = FsDefaultContext() + threadPool
 
 }

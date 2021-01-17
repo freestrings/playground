@@ -1,9 +1,12 @@
 package fs.playground
 
 import com.zaxxer.hikari.HikariDataSource
+import fs.playground.event.TestaEvent
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.jdbc.DataSourceBuilder
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
@@ -19,12 +22,20 @@ import org.springframework.transaction.annotation.EnableTransactionManagement
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.*
 import javax.sql.DataSource
+import org.springframework.core.task.SimpleAsyncTaskExecutor
+
+import org.springframework.context.event.SimpleApplicationEventMulticaster
+
+import org.springframework.context.event.ApplicationEventMulticaster
+
+
+
 
 
 @Configuration
 @EnableJpaRepositories(
-        basePackages = ["fs.playground.repository"],
-        enableDefaultTransactions = false
+    basePackages = ["fs.playground.repository"],
+    enableDefaultTransactions = false
 )
 @EnableTransactionManagement
 class Config() {
@@ -48,8 +59,8 @@ class Config() {
 
     @Bean(name = ["routingDataSource"])
     fun routingDataSource(
-            @Qualifier("masterDataSource") masterDataSource: DataSource,
-            @Qualifier("slaveDataSource") slaveDataSource: DataSource,
+        @Qualifier("masterDataSource") masterDataSource: DataSource,
+        @Qualifier("slaveDataSource") slaveDataSource: DataSource,
     ): DataSource {
         val routingDataSource = ReplicationRoutingDataSource()
         val dataSourceMap: MutableMap<Any, Any> = HashMap()
@@ -105,5 +116,30 @@ class Config() {
                 }
             }
         }
+    }
+}
+
+@Configuration
+class EventPublishConfig {
+
+    @Autowired
+    private lateinit var publisher: ApplicationEventPublisher
+
+    @Bean
+    fun testaEventPublisher() = TestaEventPublisher(publisher)
+
+    @Bean(name = ["applicationEventMulticaster"])
+    fun simpleApplicationEventMulticaster(): ApplicationEventMulticaster? {
+        val eventMulticaster = SimpleApplicationEventMulticaster()
+        eventMulticaster.setTaskExecutor(SimpleAsyncTaskExecutor())
+        return eventMulticaster
+    }
+}
+
+class TestaEventPublisher(private val publisher: ApplicationEventPublisher) //: ApplicationEventPublisherAware
+{
+
+    fun publish(testaEvent: TestaEvent) {
+        publisher.publishEvent(testaEvent)
     }
 }
