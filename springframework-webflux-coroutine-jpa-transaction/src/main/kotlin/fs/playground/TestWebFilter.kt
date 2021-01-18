@@ -1,6 +1,5 @@
 package fs.playground
 
-import fs.playground.event.TestaEvent
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
@@ -8,23 +7,20 @@ import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
 import reactor.util.context.Context
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 
 @Component
-class TestWebFilter(val publisher: TestaEventPublisher) : WebFilter {
+class TestWebFilter() : WebFilter {
+
+    val inc = AtomicInteger(0)
+
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
-        val asyncFsContext = AsyncFsContext()
+        val value = exchange.request.queryParams["value"]?.let { it[0] } ?: "${inc.incrementAndGet()}".padEnd(
+            5,
+            padChar = '0'
+        )
         return chain
             .filter(exchange)
-            .doFinally {
-                if (exchange.request.uri.path == "/ctx") {
-                    val data = asyncFsContext.getAllData()
-                    if (data.isEmpty() == null) {
-                        throw Exception("????")
-                    }
-                    println("filter $data - ${Thread.currentThread()}")
-                    publisher.publish(TestaEvent(value = data))
-                }
-            }
-            .subscriberContext(Context.of(AsyncFsContext.Key, asyncFsContext))
+            .subscriberContext(Context.of(AsyncFsContext.Key, AsyncFsContext(uuid = value)))
     }
 }

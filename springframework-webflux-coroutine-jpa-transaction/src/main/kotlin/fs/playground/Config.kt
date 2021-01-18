@@ -103,9 +103,9 @@ class Config() {
 
     class ReplicationRoutingDataSource : AbstractRoutingDataSource() {
         override fun determineCurrentLookupKey(): Any? {
-            debugPrint("Route ${if (AsyncFsContext.CTX.isReadOnly()) 1 else 0}${if (TransactionSynchronizationManager.isCurrentTransactionReadOnly()) 1 else 0}")
+//            debugPrint("Route ${if (AsyncFsContext.CTX.isSlave()) 1 else 0}${if (TransactionSynchronizationManager.isCurrentTransactionReadOnly()) 1 else 0}")
             return when {
-                AsyncFsContext.CTX.isReadOnly() -> {
+                AsyncFsContext.CTX.isSlave() -> {
                     SLAVE_DB_KEY
                 }
                 TransactionSynchronizationManager.isCurrentTransactionReadOnly() -> {
