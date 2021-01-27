@@ -104,14 +104,13 @@ class AsyncFsContext(
 
 object FsDispatcher {
 
-    private val threadPool = Schedulers.boundedElastic().asCoroutineDispatcher()
+    val threadPool = Schedulers.boundedElastic().asCoroutineDispatcher()
 
     suspend fun <T> asAsync(call: suspend () -> T): Deferred<T> {
-        val fsContext = getAsyncFsContext(coroutineContext)
-        val isSlave = fsContext.isSlave()
-        debugPrint("Before", fsContext.uuid)
-        return CoroutineScope(fsContext + threadPool).async {
-            debugPrint("Scope", fsContext.uuid)
+        val isSlave = coroutineContext.isSlave()
+        debugPrint("Before", coroutineContext.getUuid())
+        return coroutineContext.asAsync {
+            debugPrint("Scope", coroutineContext.getUuid())
             if (isSlave) {
                 AsyncFsContext.CTX.setSlave()
             } else {
@@ -122,24 +121,16 @@ object FsDispatcher {
     }
 
     suspend fun putContext(key: String, value: Any) {
-        val fsContext = getAsyncFsContext(coroutineContext)
-        fsContext.putData(key, value)
+        coroutineContext.putContext(key, value)
     }
 
     suspend fun getContext(key: String): Any? {
-        val fsContext = getAsyncFsContext(coroutineContext)
-        return fsContext.getData(key)
-    }
-
-    suspend fun getAllContext(): Map<String, Any?> {
-        val fsContext = getAsyncFsContext(coroutineContext)
-        return fsContext.getAllData()
+        return coroutineContext.getContext(key)
     }
 
     suspend fun <T> asContext(value: String, call: suspend (String) -> T): T {
-        val fsContext = getAsyncFsContext(coroutineContext)
-        val uuid = fsContext.uuid
-        return withContext(fsContext + threadPool) {
+        val uuid = coroutineContext.getUuid()
+        return coroutineContext.withAsyncContextAsThreaded(value) {
             if (value != uuid) {
                 throw Exception("#$value $uuid")
             }
@@ -148,15 +139,12 @@ object FsDispatcher {
     }
 
     suspend fun <T> withSlave(value: String, call: suspend (String) -> T): T {
-        val fsContext: AsyncFsContext = getAsyncFsContext(coroutineContext)
-        fsContext.incSlave()
+        coroutineContext.incSlave()
         return try {
-            withContext(fsContext) {
-                call(value)
-            }
+            coroutineContext.withAsyncContext(value, call)
         } finally {
-            fsContext.decSlave()
-            if (!fsContext.isSlave()) {
+            coroutineContext.decSlave()
+            if (!coroutineContext.isSlave()) {
                 AsyncFsContext.CTX.clearSlave()
             }
         }
@@ -166,4 +154,59 @@ object FsDispatcher {
         return context[AsyncFsContext] ?: context[ReactorContext]!!.context!![AsyncFsContext]
     }
 
+}
+
+
+internal inline fun CoroutineContext.getAsyncContext(): AsyncFsContext {
+    return this[AsyncFsContext] ?: this[ReactorContext]!!.context!![AsyncFsContext]
+}
+
+internal inline fun CoroutineContext.getUuid(): String {
+    return getAsyncContext().uuid
+}
+
+internal inline fun CoroutineContext.getContext(key: String): Any? {
+    return getAsyncContext().getData(key)
+}
+
+internal inline fun CoroutineContext.putContext(key: String, value: Any) {
+    getAsyncContext().putData(key, value)
+}
+
+internal inline fun CoroutineContext.incSlave() {
+    getAsyncContext().incSlave()
+}
+
+internal inline fun CoroutineContext.decSlave() {
+    getAsyncContext().decSlave()
+}
+
+internal inline fun CoroutineContext.isSlave(): Boolean {
+    return getAsyncContext().isSlave()
+}
+
+internal suspend inline fun <T> CoroutineContext.asAsync(
+    crossinline call: suspend () -> T
+): Deferred<T> {
+    return CoroutineScope(getAsyncContext() + this + FsDispatcher.threadPool).async {
+        call()
+    }
+}
+
+internal suspend inline fun <T> CoroutineContext.withAsyncContext(
+    value: String,
+    crossinline call: suspend (String) -> T
+): T {
+    return withContext(getAsyncContext() + this) {
+        call(value)
+    }
+}
+
+internal suspend inline fun <T> CoroutineContext.withAsyncContextAsThreaded(
+    value: String,
+    crossinline call: suspend (String) -> T
+): T {
+    return withContext(getAsyncContext() + this + FsDispatcher.threadPool) {
+        call(value)
+    }
 }
