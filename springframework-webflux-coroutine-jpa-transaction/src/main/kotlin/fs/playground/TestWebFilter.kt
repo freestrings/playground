@@ -17,7 +17,7 @@ class TestWebFilter() : WebFilter {
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         val value = exchange.request.queryParams["value"]?.let { it[0] } ?: "${inc.incrementAndGet()}".padEnd(
             5,
-            padChar = '0'
+            padChar = '*'
         )
         return chain
             .filter(exchange)

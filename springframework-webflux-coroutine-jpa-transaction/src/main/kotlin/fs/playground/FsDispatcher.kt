@@ -10,11 +10,11 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 fun debugPrint(flag: String, uuid: String? = null, slave: String? = null) {
-    println(
-        "${(uuid ?: "").padEnd(10)}${flag.padEnd(15)}${(slave ?: "").padEnd(5)}${
-            Thread.currentThread().toString().padEnd(50)
-        }"
-    )
+//    println(
+//        "${(uuid ?: "").padEnd(10)}${flag.padEnd(15)}${(slave ?: "").padEnd(5)}${
+//            Thread.currentThread().toString().padEnd(50)
+//        }"
+//    )
 }
 
 class AsyncFsContext(
@@ -60,7 +60,9 @@ class AsyncFsContext(
         slave.decrementAndGet()
     }
 
-    fun isSlave() = slave.get() != 0
+    fun isSlave(): Boolean {
+        return slave.get() != 0
+    }
 
     fun putData(key: String, value: Any) {
         data[key] = value
@@ -188,7 +190,7 @@ internal inline fun CoroutineContext.isSlave(): Boolean {
 internal suspend inline fun <T> CoroutineContext.asAsync(
     crossinline call: suspend () -> T
 ): Deferred<T> {
-    return CoroutineScope(getAsyncContext() + this + FsDispatcher.threadPool).async {
+    return CoroutineScope(getAsyncContext() + FsDispatcher.threadPool).async {
         call()
     }
 }
@@ -197,7 +199,7 @@ internal suspend inline fun <T> CoroutineContext.withAsyncContext(
     value: String,
     crossinline call: suspend (String) -> T
 ): T {
-    return withContext(getAsyncContext() + this) {
+    return withContext(getAsyncContext()) {
         call(value)
     }
 }
@@ -206,7 +208,13 @@ internal suspend inline fun <T> CoroutineContext.withAsyncContextAsThreaded(
     value: String,
     crossinline call: suspend (String) -> T
 ): T {
-    return withContext(getAsyncContext() + this + FsDispatcher.threadPool) {
+    val isSlave = coroutineContext.isSlave()
+    return withContext(getAsyncContext() + FsDispatcher.threadPool) {
+        if (isSlave) {
+            AsyncFsContext.CTX.setSlave()
+        } else {
+            AsyncFsContext.CTX.clearSlave()
+        }
         call(value)
     }
 }

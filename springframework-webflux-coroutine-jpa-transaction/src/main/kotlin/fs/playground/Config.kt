@@ -27,9 +27,7 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor
 import org.springframework.context.event.SimpleApplicationEventMulticaster
 
 import org.springframework.context.event.ApplicationEventMulticaster
-
-
-
+import java.sql.Connection
 
 
 @Configuration
@@ -98,6 +96,8 @@ class Config() {
     fun additionalProperties(): Properties {
         val properties = Properties();
         properties.setProperty("hibernate.dialect", "org.hibernate.dialect.MySQL5Dialect")
+        properties.setProperty("hibernate.generate_statistics", "true")
+
         return properties;
     }
 
@@ -115,6 +115,18 @@ class Config() {
                     MASTER_DB_KEY
                 }
             }
+        }
+
+        override fun getConnection(): Connection {
+            val connection = super.getConnection()
+            println(connection)
+            return connection
+        }
+
+        override fun getConnection(username: String, password: String): Connection {
+            val connection = super.getConnection(username, password)
+            println(connection)
+            return connection
         }
     }
 }
