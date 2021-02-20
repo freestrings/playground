@@ -1,0 +1,13 @@
+GET http://localhost:8080/loop?count=10000&type=io
+
+###
+GET http://localhost:8080/loop?count=10000&type=bounded
+
+###
+GET http://localhost:8080/loop?count=10000&type=bounded2
+
+###
+GET http://localhost:8080/loop?count=10000&type=default
+
+###
+GET http://localhost:8080/loop?count=10000&type=global
