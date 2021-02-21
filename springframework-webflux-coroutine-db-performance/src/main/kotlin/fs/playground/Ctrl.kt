@@ -3,6 +3,7 @@ package fs.playground
 import kotlinx.coroutines.*
 import kotlinx.coroutines.reactor.asCoroutineDispatcher
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -30,74 +31,52 @@ class Ctrl(val jdbcTemplate: JdbcTemplate, val personRepository: PersonRepositor
      * query performance
      *
      * ####
-     * ==> JDBC > JQPL,JPA-Native > JPA
+     * ==> JDBC(tps ~=1,500) > JQPL,JPA-Native, JPA (tps ~= 1,300)
      * ####
+     *
+     *
+     * !!! @EnableJpaRepositories(enableDefaultTransactions = false)
+     * 설정 없으면 jpa 호출 때 불필요한 쿼리가 많이 생김
+     *
+     * ----------------
+     * commit
+     * autocommit=0
+     * read-only/read-write transaction settings being sent
+     * select ...
+     * autocommit=1
+     *
+     * =>
+     * select ...
+     *
+     * ----------------
      *
      * ## JPA
      * ab -c 100 -n 10000 http://localhost:8080/bounded\?type=jpa
-     * Requests per second:    454.69 [#/sec] (mean)
-     * Time per request:       219.932 [ms] (mean)
-     * Time per request:       2.199 [ms] (mean, across all concurrent requests)
-     * Transfer rate:          31.97 [Kbytes/sec] received
-     *
-     * Connection Times (ms)
-     * min  mean[+/-sd] median   max
-     * Connect:        0    0   0.3      0       7
-     * Processing:    10  219  28.5    217     342
-     * Waiting:        8  219  28.5    217     342
-     * Total:         10  219  28.4    217     342
-     *
-     *
      * ## JPQL
      * ab -c 100 -n 10000 http://localhost:8080/bounded\?type=jpql
-     * Requests per second:    1324.37 [#/sec] (mean)
-     * Time per request:       75.508 [ms] (mean)
-     * Time per request:       0.755 [ms] (mean, across all concurrent requests)
-     * Transfer rate:          93.12 [Kbytes/sec] received
-     *
-     * Connection Times (ms)
-     * min  mean[+/-sd] median   max
-     * Connect:        0    1  10.3      0     132
-     * Processing:     8   74  21.6     72     172
-     * Waiting:        3   73  21.6     71     172
-     * Total:          8   75  23.8     72     236
-     *
-     *
      * ## @Query(nativeQuery=true)
      * ab -c 100 -n 10000 http://localhost:8080/bounded\?type=jpaNative
-     * Requests per second:    1283.63 [#/sec] (mean)
-     * Time per request:       77.904 [ms] (mean)
-     * Time per request:       0.779 [ms] (mean, across all concurrent requests)
-     * Transfer rate:          90.26 [Kbytes/sec] received
-     *
-     * Connection Times (ms)
-     * min  mean[+/-sd] median   max
-     * Connect:        0    0   0.7      0      12
-     * Processing:    11   77  26.3     72     240
-     * Waiting:        3   77  26.2     72     240
-     * Total:         11   77  26.2     73     240
-     *
-     *
      * ## JDBC
      * ab -c 100 -n 10000 http://localhost:8080/bounded\?type=jdbc
-     * Requests per second:    1470.00 [#/sec] (mean)
-     * Time per request:       68.027 [ms] (mean)
-     * Time per request:       0.680 [ms] (mean, across all concurrent requests)
-     * Transfer rate:          103.36 [Kbytes/sec] received
-     *
-     * Connection Times (ms)
-     * min  mean[+/-sd] median   max
-     * Connect:        0    0   0.5      0       7
-     * Processing:     8   68  22.2     64     170
-     * Waiting:        3   67  22.2     63     169
-     * Total:          8   68  22.2     64     170
      */
     private fun query(type: String): List<Person> {
         return when (type) {
-            "jpaNative" -> jpaNative()
-            "jpql" -> jpql()
-            "jpa" -> jpa().toList()
-            else -> jdbc()
+            "jpaNative" -> {
+                println("jpaNative")
+                jpaNative()
+            }
+            "jpql" -> {
+                println("jpql")
+                jpql()
+            }
+            "jpa" -> {
+                println("jpa")
+                jpa().toList()
+            }
+            else -> {
+                println("jdbc")
+                jdbc()
+            }
         }
     }
 
@@ -150,10 +129,11 @@ class Ctrl(val jdbcTemplate: JdbcTemplate, val personRepository: PersonRepositor
      * 지정한 풀에서 동작됨
      */
     @GetMapping("/bounded")
+//    @Transactional(readOnly = true)
     suspend fun bounded(@RequestParam("type", required = false, defaultValue = "jdbc") type: String): List<Person> =
         coroutineScope {
             val a = async(POOL + TestCtx(UUID.randomUUID().toString())) {
-                println("BOUNDED - ${Thread.currentThread().name}")
+                println("BOUNDED - $type - ${Thread.currentThread().name}")
                 query(type)
             }
             a.await()
@@ -182,7 +162,7 @@ class Ctrl(val jdbcTemplate: JdbcTemplate, val personRepository: PersonRepositor
     suspend fun deferredLoop(
         @RequestParam("count") count: Int,
         @RequestParam("type") type: String,
-        @RequestParam("type", required = false, defaultValue = "queryType") queryType: String
+        @RequestParam("queryType", required = false, defaultValue = "jpa") queryType: String
     ): String {
         when (type) {
             "io" -> (0..count).map { io(queryType) }
