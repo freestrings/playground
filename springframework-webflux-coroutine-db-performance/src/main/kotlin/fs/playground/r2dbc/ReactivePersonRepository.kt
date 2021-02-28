@@ -1,4 +1,4 @@
-package fs.playground
+package fs.playground.r2dbc
 
 import org.springframework.data.r2dbc.repository.R2dbcRepository
 import org.springframework.stereotype.Repository

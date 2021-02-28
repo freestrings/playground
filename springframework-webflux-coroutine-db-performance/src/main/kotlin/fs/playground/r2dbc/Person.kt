@@ -1,4 +1,4 @@
-package fs.playground
+package fs.playground.r2dbc
 
 import javax.persistence.GeneratedValue
 import javax.persistence.GenerationType
