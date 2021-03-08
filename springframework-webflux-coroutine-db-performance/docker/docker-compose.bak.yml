@@ -1,0 +1,46 @@
+version: '3'
+services:
+  toxiproxy:
+    image: "shopify/toxiproxy"
+    ports:
+      - "8474:8474"
+      - "33070:3306"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.5
+  toxiproxy-config:
+    image: "shopify/toxiproxy"
+    entrypoint: >
+      sh -c "/go/bin/toxiproxy-cli -h toxiproxy:8474 create mysql --listen 0.0.0.0:33070 --upstream 10.5.0.6:3306;"
+  mysql:
+    image: mysql:8.0.21
+    volumes:
+      - ./db:/db
+      - ./seeding.sh:/docker-entrypoint-initdb.d/seeding.sh
+      - ./mysql/conf:/etc/mysql/conf.d
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      TZ: "Asia/Seoul"
+    ports:
+      - "33060:3306"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.6
+  app:
+    image: openjdk:11
+    volumes:
+      - ./scripts/run-toxiproxy.sh:/run-toxiproxy.sh
+      - ../build/libs/springframework-webflux-coroutine-db-performance-0.0.1-SNAPSHOT.jar:/app.jar:ro
+    command: ["/run-toxiproxy.sh"]
+    ports:
+      - "8080:8080"
+    networks:
+      vpcbr:
+        ipv4_address: 10.5.0.7
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.5.0.0/16
+          gateway: 10.5.0.1

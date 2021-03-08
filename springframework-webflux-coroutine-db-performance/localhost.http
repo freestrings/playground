@@ -11,3 +11,38 @@ GET http://localhost:8080/loop?count=10000&type=default
 
 ###
 GET http://localhost:8080/loop?count=10000&type=global
+
+###
+GET http://localhost:8080/io?type=jpa
+
+### 프락시 생성
+POST http://localhost:8474/proxies
+Content-Type: application/json
+
+{
+  "name": "mysql",
+  "listen": "localhost:33070",
+  "upstream": "localhost:33060"
+}
+
+### 딜레이 생성
+POST http://localhost:8474/proxies/mysql/toxics
+Content-Type: application/json
+
+{
+  "type": "latency",
+  "attributes" : {
+    "latency": 100
+  }
+}
+
+### 딜레이 업데이트
+POST http://localhost:8474/proxies/mysql/toxics/latency_downstream
+Content-Type: application/json
+
+{
+  "type": "latency",
+  "attributes" : {
+    "latency": 300
+  }
+}
