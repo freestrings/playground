@@ -1,8 +1,7 @@
 version: '3'
 services:
-  mysql-master:
+  mysql:
     image: mysql:8.0.21
-    restart: always
     volumes:
       - ./db:/db
       - ./seeding.sh:/docker-entrypoint-initdb.d/seeding.sh

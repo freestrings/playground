@@ -123,13 +123,12 @@ class Ctrl(val jdbcTemplate: JdbcTemplate, val personRepository: PersonRepositor
             query(type)
         }
 
-    val POOL = Schedulers.newBoundedElastic(10, 100000, "pool").asCoroutineDispatcher()
+    val POOL = Schedulers.newBoundedElastic(4, 100000, "pool").asCoroutineDispatcher()
 
     /**
      * 지정한 풀에서 동작됨
      */
     @GetMapping("/bounded")
-//    @Transactional(readOnly = true)
     suspend fun bounded(@RequestParam("type", required = false, defaultValue = "jdbc") type: String): List<Person> =
         coroutineScope {
             val a = async(POOL + TestCtx(UUID.randomUUID().toString())) {
