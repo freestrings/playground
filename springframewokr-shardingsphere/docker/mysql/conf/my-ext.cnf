@@ -1,0 +1,5 @@
+[mysqld]
+general_log                     =1
+slow_query_log                  =1
+long_query_time                 =2
+log_queries_not_using_indexes   =1

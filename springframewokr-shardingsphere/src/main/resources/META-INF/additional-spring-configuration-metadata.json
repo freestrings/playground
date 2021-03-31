@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "spring.shardingsphere.rules.sharding.sharding-algorithms.database_inline.props.algorithm-expression",
+      "type": "java.lang.String",
+      "description": "Description for spring.shardingsphere.rules.sharding.sharding-algorithms.database_inline.props.algorithm-expression."
+  }
+] }
