@@ -11,6 +11,15 @@ import org.apache.kafka.common.serialization.Serdes
 import java.time.Duration
 import java.util.*
 
+/**
+ * sent
+ * sent
+ * close
+ * jo@0 = 1 [4]
+ * jo@0 = 2 [4]
+ * jo@0 = 1 [4]
+ * jo@0 = 1 [4]
+ */
 fun main() {
     val playEventSerializer = SpecificAvroSerializer<PlayEvent>()
     val serdeConfig = mapOf(
@@ -37,33 +46,40 @@ fun main() {
         ProducerRecord(
             "play-events",
             null,
-            start + App.INACTIVITY_GAP.toMillis(),
+            start,
             "jo",
             PlayEvent(1, 10)
         )
     )
 
-    playEventProducer.send(
-        ProducerRecord(
-            "play-events",
-            null,
-            start + App.INACTIVITY_GAP.toMillis() + 1,
-            "jo",
-            PlayEvent(1, 10)
-        )
-    )
+    Thread.sleep(5000)
+    println("sent")
 
     playEventProducer.send(
         ProducerRecord(
             "play-events",
             null,
-            start + 2 * App.INACTIVITY_GAP.toMillis() + 1,
+            start + 5000,
+            "jo",
+            PlayEvent(1, 10)
+        )
+    )
+
+    Thread.sleep(5000)
+    println("sent")
+
+    playEventProducer.send(
+        ProducerRecord(
+            "play-events",
+            null,
+            start + 2 * 5000,
             "jo",
             PlayEvent(1, 10)
         )
     )
 
     playEventProducer.close()
+    println("close")
 
     val consumerProp = Properties()
     consumerProp[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
@@ -82,4 +98,9 @@ fun main() {
         }
         received += records.count()
     }
+
+    //
+    // 컨슈머를 닫지 않으니까 계속 누적돼서 값이 찍힘
+    //
+    Runtime.getRuntime().addShutdownHook(Thread(consumer::close))
 }

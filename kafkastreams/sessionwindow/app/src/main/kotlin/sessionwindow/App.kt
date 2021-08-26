@@ -18,9 +18,15 @@ import java.time.Duration
 import java.util.*
 
 object App {
-    val INACTIVITY_GAP = Duration.ofMinutes(1)
+    val INACTIVITY_GAP = Duration.ofSeconds(3)
 }
 
+/**
+ * map jo@0 - 1
+ * map jo@0 - 2
+ * map jo@0 - 1
+ * map jo@0 - 1
+ */
 fun main() {
     val prop = Properties()
     prop[StreamsConfig.APPLICATION_ID_CONFIG] = "session-windows"
@@ -50,7 +56,8 @@ fun main() {
         )
         .toStream()
         .map { key, value ->
-            KeyValue("${key.key()}@${key.window().start()}->${key.window().end()}", value)
+            println("map ${key.key()}@${key.window().end() - key.window().start()} - $value")
+            KeyValue("${key.key()}@${key.window().end() - key.window().start()}", value)
         }
         .to("play-events-per-session", Produced.with(Serdes.String(), Serdes.Long()))
 
