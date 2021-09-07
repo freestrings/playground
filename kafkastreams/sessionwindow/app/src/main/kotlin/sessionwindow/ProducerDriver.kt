@@ -2,24 +2,12 @@ package sessionwindow
 
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerializer
-import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.Serdes
-import java.time.Duration
 import java.util.*
 
-/**
- * sent
- * sent
- * close
- * jo@0 = 1 [4]
- * jo@0 = 2 [4]
- * jo@0 = 1 [4]
- * jo@0 = 1 [4]
- */
 fun main() {
     val playEventSerializer = SpecificAvroSerializer<PlayEvent>()
     val serdeConfig = mapOf(
@@ -41,6 +29,7 @@ fun main() {
             PlayEvent(1, 10)
         )
     )
+    println("sent")
 
     playEventProducer.send(
         ProducerRecord(
@@ -51,9 +40,10 @@ fun main() {
             PlayEvent(1, 10)
         )
     )
-
-    Thread.sleep(5000)
     println("sent")
+    println("sleep 5 begin")
+    Thread.sleep(5000)
+    println("sleep done")
 
     playEventProducer.send(
         ProducerRecord(
@@ -64,9 +54,11 @@ fun main() {
             PlayEvent(1, 10)
         )
     )
-
-    Thread.sleep(5000)
     println("sent")
+
+    println("sleep 5 begin")
+    Thread.sleep(5000)
+    println("sleep done")
 
     playEventProducer.send(
         ProducerRecord(
@@ -77,30 +69,8 @@ fun main() {
             PlayEvent(1, 10)
         )
     )
+    println("sent")
 
     playEventProducer.close()
     println("close")
-
-    val consumerProp = Properties()
-    consumerProp[ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG] = "localhost:9092"
-    consumerProp[ConsumerConfig.GROUP_ID_CONFIG] = "session-windows-consumer"
-    consumerProp[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
-    consumerProp[ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG] = Serdes.String().deserializer().javaClass
-    consumerProp[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = Serdes.Long().deserializer().javaClass
-
-    val consumer = KafkaConsumer<String, Long>(consumerProp)
-    consumer.subscribe(arrayListOf("play-events-per-session"))
-    var received = 0
-    while (received < 4) {
-        val records = consumer.poll(Duration.ofMillis(Long.MAX_VALUE))
-        records.forEach {
-            println("${it.key()} = ${it.value()} [${records.count()}]")
-        }
-        received += records.count()
-    }
-
-    //
-    // 컨슈머를 닫지 않으니까 계속 누적돼서 값이 찍힘
-    //
-    Runtime.getRuntime().addShutdownHook(Thread(consumer::close))
 }
