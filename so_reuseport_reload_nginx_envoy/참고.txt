@@ -1,0 +1,5 @@
+https://blog.krudewig-online.de/2021/05/06/Envoy-sidecar-configuration-generator.html
+
+https://github.com/NickMRamirez/Proxy-Benchmarks
+
+https://www.envoyproxy.io/docs/envoy/latest/start/sandboxes/front_proxy
