@@ -1,0 +1,18 @@
+[server default]
+user=mha
+password=1234
+
+ssh_user=root
+
+manager_workdir=/etc/masterha/work
+manager_log=/etc/masterha/log/mha.log
+remote_workdir=/etc/masterha/remote
+
+master_ip_failover_script=/usr/local/bin/master_ip_failover
+master_ip_online_change_script=/usr/local/bin/master_ip_online_change
+
+[server1]
+hostname=10.5.0.2
+
+[server2]
+hostname=10.5.0.3

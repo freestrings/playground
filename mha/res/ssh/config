@@ -1,0 +1,6 @@
+Host mha-master 10.5.0.2
+  IdentityFile /root/.ssh/id_rsa_master
+
+Host mha-slave 10.5.0.3
+  IdentityFile /root/.ssh/id_rsa_slave
+  

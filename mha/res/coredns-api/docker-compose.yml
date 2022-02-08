@@ -1,0 +1,26 @@
+version: "3"
+
+services:
+  coredns-container:
+    image: coredns/coredns:1.8.0
+    container_name: coredns-container
+    hostname: coredns-container
+    ports:
+      - "53:53/udp"
+    volumes:
+      - ./coredns_conf/:/var/lib/coredns:ro
+    command: -conf /var/lib/coredns/coredns.conf
+
+  coredns-api:
+    image: coredns-api:0.1
+    container_name: coredns-api
+    hostname: coredns-api
+    ports:
+      - "8080:8080/tcp"
+    volumes:
+      - ./coredns_conf/:/var/lib/coredns
+    environment:
+      - SERVER=127.0.0.1
+      - PORT=8080
+      - CONF_PATH=/var/lib/coredns/coredns.conf
+      - HOSTS_DIR=/var/lib/coredns/hosts/

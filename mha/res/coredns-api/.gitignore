@@ -1,0 +1,13 @@
+.vscode
+.DS_Store
+.idea
+.go-version
+
+go.sum
+go.sum*tmp
+
+main
+coredns-api
+
+build/coredns-api
+
