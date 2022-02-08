@@ -48,4 +48,9 @@ Thumbs.db
 *.mov
 *.wmv
 
-res/manager/conf/masterha/
+!build
+!res/manager/install/bin/
+!res/manager/conf/masterha/log
+res/manager/conf/masterha/log/mha.log
+res/manager/conf/masterha/remote/*
+res/manager/conf/masterha/work/*

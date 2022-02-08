@@ -1,0 +1,179 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+
+use Getopt::Long;
+use MHA::DBHelper;
+
+use HTTP::Request;
+use LWP::UserAgent;
+use JSON;
+use JSON::MaybeXS qw(encode_json);
+use Data::Dumper;
+use Carp qw(croak);
+
+my (
+  $command,        $ssh_user,         $orig_master_host,
+  $orig_master_ip, $orig_master_port, $new_master_host,
+  $new_master_ip,  $new_master_port,  $new_master_user,
+  $new_master_password
+);
+GetOptions(
+  'command=s'             => \$command,
+  'ssh_user=s'            => \$ssh_user,
+  'orig_master_host=s'    => \$orig_master_host,
+  'orig_master_ip=s'      => \$orig_master_ip,
+  'orig_master_port=i'    => \$orig_master_port,
+  'new_master_host=s'     => \$new_master_host,
+  'new_master_ip=s'       => \$new_master_ip,
+  'new_master_port=i'     => \$new_master_port,
+  'new_master_user=s'     => \$new_master_user,
+  'new_master_password=s' => \$new_master_password,
+);
+
+exit &main();
+
+sub main {
+  no warnings 'uninitialized';
+
+  print "=master_ip_failover: '$command'", "\n",
+    "\t", "orig_master_host: '$orig_master_host'", "\n",
+    "\t", "new_master_host: '$new_master_host'", "\n",
+    "\t", "new_master_password: '$new_master_password'", "\n";
+
+  if ( $command eq "stop" || $command eq "stopssh" ) {
+    my $exit_code = 1;
+    eval {
+      # do nothing
+      $exit_code = 0;
+    };
+    if ($@) {
+      warn "Got Error: $@\n";
+      exit $exit_code;
+    }
+    exit $exit_code;
+  }
+
+  elsif ( $command eq "start" ) {
+    my $exit_code = 10;
+    eval {
+      $exit_code = &switch_db_address();
+    };
+    if ($@) {
+      warn $@;
+      exit $exit_code;
+    }
+    exit $exit_code;
+  }
+
+  elsif ( $command eq "status" ) {
+    my $address = &check_db_address();
+    print "currenet address: $address", '\n';
+    exit 0;
+  }
+  
+  else {
+    &usage();
+    exit 1;
+  }
+}
+
+sub request {
+  my $method = shift;
+  my $url = shift;
+  my $request = HTTP::Request->new($method, $url, &get_default_header());
+  if($method eq 'POST') {
+    my $data = shift;
+    $request->content($data);
+  }
+  my $ua = LWP::UserAgent->new();
+  return $ua->request($request);
+}
+
+sub get_default_header {
+  return [
+    'Tenant' => '__tenat__',
+    'Content-Type' => 'application/json'
+  ];
+}
+
+sub get_domain_url {
+  return 'http://dns.local-kbin.io:8080/v1/domains/__domain__';
+}
+
+sub get_hosts_url {
+  return &get_domain_url().'/hosts';
+}
+
+sub get_db_url {
+  my $uuid = &get_uuid();
+  if(length $uuid == 0) {
+    croak "Empty uuid";
+  }
+  return &get_hosts_url().'/'.$uuid;
+}
+
+sub get_uuid {
+  my $response = &request('GET', &get_domain_url());
+  if(!$response->is_success) {
+    croak "Fail to get domain info";
+  }
+
+  my $content = decode_json $response->content;
+  foreach my $host (@{ $content->{hosts} }) {
+    print "hostname: $host->{hostname}; address: $host->{address}; uuid: $host->{uuid}; \n";
+    if($host->{hostname} eq 'db.local-kbin.io') {
+      return $host->{uuid};
+    }
+  }
+
+  return '';
+}
+
+sub check_db_address {
+  my $response = &request('GET', &get_db_url());
+
+  if ($response->is_success) {
+    my $message = decode_json $response->decoded_content;
+    my $hostname = $message->{hosts}->[0]->{hostname};
+    my $address = $message->{hosts}->[0]->{address};
+    print "Hostname: ", $hostname, ",", "Address: ", $address, "\n";
+    return "$address";
+  } else {
+    croak "Get Error[: ", $response->code, "]", $response->message, "\n";
+  }
+}
+
+# update[X] ==> delete and add[O]
+sub switch_db_address {
+  if(length $new_master_host == 0) {
+    croak "Empty new master";
+  }
+
+  print "new_master_host: $new_master_host\n";
+
+  my $response = &request('DELETE', &get_db_url());
+  if ($response->is_success) {
+    print "DB host delete OK: ", $response->message, "\n";
+
+    $response = &request('POST', &get_hosts_url(), encode_json({
+      hostname => "db.local-kbin.io", address => $new_master_host
+    }));
+    
+    if ($response->is_success) {
+      print "DB host add OK: ", $response->message, "\n";
+    } else {
+      print "DB host add Fail[", $response->code, "] ", $response->message, "\n";
+    }
+  } else {
+    print "DB host delete Fail[", $response->code, "] ", $response->message, "\n";
+  }
+
+  return 0;
+}
+
+sub usage {
+  print
+"Usage: master_ip_failover --command=start|stop|stopssh|status --orig_master_host=host --orig_master_ip=ip --orig_master_port=port --new_master_host=host --new_master_ip=ip --new_master_port=port\n";
+}
