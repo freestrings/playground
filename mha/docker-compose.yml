@@ -39,57 +39,57 @@ services:
      mha:
         ipv4_address: 10.5.0.3
   
-  mha-monitor:
-    build:
-      context: ./res/manager
-      dockerfile: build/Dockerfile
-    hostname: mha-monitor
-    volumes:
-      - ./res/ssh:/root/ssh:ro
-      - ./res/manager/install/bin:/usr/local/bin:ro
-      - ./res/manager/install/MHA/NodeUtil.pm:/usr/share/perl5/MHA/NodeUtil.pm:ro
-      - ./res/manager/conf/masterha_default.cnf:/etc/masterha_default.cnf
-      - ./res/manager/conf/masterha:/etc/masterha
-      - ./res/manager/shl/init-manager.sh:/init-manager.sh:ro
-    depends_on:
-      mha-master: 
-        condition: service_healthy
-      mha-slave: 
-        condition: service_healthy
-    command: /init-manager.sh
-    dns:
-      - "10.5.3.2"
-    networks:
-     mha:
-        ipv4_address: 10.5.1.2
+  # mha-monitor:
+  #   build:
+  #     context: ./res/manager
+  #     dockerfile: build/Dockerfile
+  #   hostname: mha-monitor
+  #   volumes:
+  #     - ./res/ssh:/root/ssh:ro
+  #     - ./res/manager/install/bin:/usr/local/bin:ro
+  #     - ./res/manager/install/MHA/NodeUtil.pm:/usr/share/perl5/MHA/NodeUtil.pm:ro
+  #     - ./res/manager/conf/masterha_default.cnf:/etc/masterha_default.cnf
+  #     - ./res/manager/conf/masterha:/etc/masterha
+  #     - ./res/manager/shl/init-manager.sh:/init-manager.sh:ro
+  #   depends_on:
+  #     mha-master: 
+  #       condition: service_healthy
+  #     mha-slave: 
+  #       condition: service_healthy
+  #   command: /init-manager.sh
+  #   dns:
+  #     - "10.5.3.2"
+  #   networks:
+  #    mha:
+  #       ipv4_address: 10.5.1.2
 
-  coredns-container:
-    image: coredns/coredns:1.8.0
-    hostname: coredns-container
-    volumes:
-      - ./res/coredns-api/coredns_conf/:/var/lib/coredns:ro
-    command: -conf /var/lib/coredns/coredns.conf
-    networks:
-     mha:
-        ipv4_address: 10.5.3.2
+  # coredns-container:
+  #   image: coredns/coredns:1.8.0
+  #   hostname: coredns-container
+  #   volumes:
+  #     - ./res/coredns-api/coredns_conf/:/var/lib/coredns:ro
+  #   command: -conf /var/lib/coredns/coredns.conf
+  #   networks:
+  #    mha:
+  #       ipv4_address: 10.5.3.2
 
-  coredns-api:
-    build:
-      context: ./res/coredns-api
-      dockerfile: build/Dockerfile
-    hostname: coredns-api
-    ports:
-      - "18080:8080/tcp"
-    volumes:
-      - ./res/coredns-api/coredns_conf/:/var/lib/coredns
-    environment:
-      - SERVER=127.0.0.1
-      - PORT=8080
-      - CONF_PATH=/var/lib/coredns/coredns.conf
-      - HOSTS_DIR=/var/lib/coredns/hosts/
-    networks:
-     mha:
-        ipv4_address: 10.5.3.3
+  # coredns-api:
+  #   build:
+  #     context: ./res/coredns-api
+  #     dockerfile: build/Dockerfile
+  #   hostname: coredns-api
+  #   ports:
+  #     - "18080:8080/tcp"
+  #   volumes:
+  #     - ./res/coredns-api/coredns_conf/:/var/lib/coredns
+  #   environment:
+  #     - SERVER=127.0.0.1
+  #     - PORT=8080
+  #     - CONF_PATH=/var/lib/coredns/coredns.conf
+  #     - HOSTS_DIR=/var/lib/coredns/hosts/
+  #   networks:
+  #    mha:
+  #       ipv4_address: 10.5.3.3
 
 networks:
   mha:
