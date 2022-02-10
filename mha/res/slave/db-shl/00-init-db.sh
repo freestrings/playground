@@ -1,5 +1,11 @@
 #!/bin/bash
 
+mysql -uroot -p1234 <<END
+    CREATE USER 'mha'@'%' identified by '1234';
+    GRANT ALL PRIVILEGES ON *.* TO 'mha'@'%';
+    FLUSH PRIVILEGES;
+END
+
 master_status=`mysql -h mha-master -uroot -p1234 -e "SHOW MASTER STATUS"`
 current_log=`echo $master_status | awk '{print $6}'`
 current_pos=`echo $master_status | awk '{print $7}'`
