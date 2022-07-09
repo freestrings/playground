@@ -17,27 +17,27 @@ services:
      mha:
         ipv4_address: 10.5.0.2
 
-  mha-slave:
-    build:
-      context: ./res
-      dockerfile: slave/build/Dockerfile
-    hostname: mha-slave
-    environment:
-      - MYSQL_ROOT_PASSWORD=1234
-      - TZ=Asia/Seoul
-    ports:
-      - "23306:3306"
-    healthcheck:
-      test: mysqladmin ping -h 127.0.0.1 -u root --password=1234
-    depends_on:
-      mha-master: 
-        condition: service_healthy
-    command: /init-slave.sh
-    dns:
-      - "10.5.3.2"
-    networks:
-     mha:
-        ipv4_address: 10.5.0.3
+  # mha-slave:
+  #   build:
+  #     context: ./res
+  #     dockerfile: slave/build/Dockerfile
+  #   hostname: mha-slave
+  #   environment:
+  #     - MYSQL_ROOT_PASSWORD=1234
+  #     - TZ=Asia/Seoul
+  #   ports:
+  #     - "23306:3306"
+  #   healthcheck:
+  #     test: mysqladmin ping -h 127.0.0.1 -u root --password=1234
+  #   depends_on:
+  #     mha-master: 
+  #       condition: service_healthy
+  #   command: /init-slave.sh
+  #   dns:
+  #     - "10.5.3.2"
+  #   networks:
+  #    mha:
+  #       ipv4_address: 10.5.0.3
   
   # mha-monitor:
   #   build:
