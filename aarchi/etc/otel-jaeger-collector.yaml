@@ -1,0 +1,9 @@
+exporters:
+  jaeger_elasticsearch:
+    es:
+      server-urls: http://elasticsearch:9200
+      num-replicas: 1
+
+processors:
+
+service:
