@@ -1,0 +1,33 @@
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile 'org.springframework.boot:spring-boot-starter-actuator:1.5.12.RELEASE'
+	compile 'org.springframework.boot:spring-boot-starter-web:1.5.12.RELEASE'
+//	compile 'io.micrometer:micrometer-core:1.3.5'
+//	compile 'io.github.openfeign:feign-core:10.10.1'
+//	compile 'io.github.openfeign:feign-micrometer:10.9'
+//	compile 'io.github.openfeign:feign-httpclient:10.10.1'
+
+	// micrometer-spring-legacy + micrometer-registry-prometheus + feign-httpclient:9.5.0 조합만 해도 됨
+	compile 'io.github.openfeign:feign-httpclient:9.5.0'
+	compile 'io.micrometer:micrometer-spring-legacy:1.0.3'
+	compile 'io.micrometer:micrometer-registry-prometheus:1.0.3'
+
+	compile ('org.springframework.cloud:spring-cloud-starter-openfeign:1.4.7.RELEASE') {
+//		exclude group: 'io.github.openfeign'
+	}
+}
+
+//task wrapper(type: Wrapper) {
+//	gradleVersion = '5.6'
+//}
