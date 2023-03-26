@@ -1,20 +1,41 @@
 receivers:
-  otlp:
-    protocols:
-      grpc:
-
-exporters:
-  jaeger:
-    endpoint: jaeger-collector:14250
-    tls:
-      insecure: true
+  fluentforward:
+    endpoint: 0.0.0.0:8006
 
 processors:
   batch:
+  attributes:
+    actions:
+    - action: extract
+      key: body
+      pattern: .*"level"\s*:\s*"(?P<level>[^\"]+).*
+    - action: insert
+      key: loki.attribute.labels
+      value: level
+    - action: delete
+      key: body
+
+  transform:
+    log_statements:
+    - context: log
+      statements:
+        - set(attributes["body"], body)
+exporters:
+  logging:
+    verbosity: detailed
+  loki:
+    endpoint: http://localhost:3100/loki/api/v1/push
+
+  elasticsearch:
+    endpoints: [http://localhost:9200]
+    logs_index: my_log_index
 
 service:
   pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [jaeger]
+    logs/loki:
+      receivers: [fluentforward]
+      processors: [transform, attributes]
+      exporters: [logging, loki]
+    logs/es:
+      receivers: [fluentforward]
+      exporters: [logging, elasticsearch]

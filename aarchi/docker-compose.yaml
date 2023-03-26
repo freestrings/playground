@@ -1,68 +1,16 @@
 version: "3.8"
 
 services:
-  # ------------------------------------------------------------------
-  # Common
-  #
-  docker-java-base:
-    build: ./etc/docker-java-base
-    image: freestings/aarchi-docker-java-base:latest
-
-  # ------------------------------------------------------------------
-  # Database
-  #
-  provider1-db:
-    image: postgres
-    restart: always
-    environment:
-      - POSTGRES_DB=provider1
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgrespassword
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    ports:
-      - 5432:5432
-    volumes:
-      - ./provider1/db/data:/var/lib/postgresql
-      - ./provider1/db/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
-
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - 7070:80
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin4@pgadmin.org
-      PGADMIN_DEFAULT_PASSWORD: admin
-    depends_on:
-      - provider1-db
-
-  api-otel-jaeger:
-    build:
-      context: ./api
-    ports:
-      - "8080:8080"
-    environment:
-      - |
-        JAVA_OPTS_APPEND=
-        -Dotel.traces.exporter=jaeger
-        -Dotel.exporter.jaeger.endpoint=http://jaeger-collector:14250
-        -Dotel.metrics.exporter=none
-        -Dotel.logs.exporter=none
-        -Dotel.resource.attributes="service.name=api-jaeger"
-        -Dotel.javaagent.debug=true
-    volumes:
-      - ./data/logs/api-otel-jaeger-collector:/app/logs
-    depends_on:
-      - docker-java-base
-      - jaeger-collector
-
+  
   api-otel:
-    build:
-      context: ./api
-    ports:
-      - "8081:8080"
+    image: azul/zulu-openjdk-alpine:11
+    network_mode: "host"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:8006
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=none
       - OTEL_METRICS_EXPORTER=none
       - OTEL_LOGS_EXPORTER=none
       - OTEL_RESOURCE_ATTRIBUTES=service.name=api-otel
@@ -71,84 +19,56 @@ services:
         -Dotel.javaagent.debug=true
     volumes:
       - ./data/logs/api-otel-collector:/app/logs
-    depends_on:
-      - docker-java-base
-      - otel-collector
+      - ./api/build/libs/api-0.0.1-SNAPSHOT.jar:/app.jar
+      - ./api/scripts/start-app.sh:/start-app.sh
+      - ./api/agent/opentelemetry-javaagent.jar:/opentelemetry-javaagent.jar
+    command: ["sh", "/start-app.sh"]
+
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:latest
+  #   network_mode: "host"
+  #   volumes:
+  #     - ./etc/otel-collector-loki.yaml:/etc/otel-config.yaml
+  #   links:
+  #     - loki
+  #   command: [
+  #     "--config=/etc/otel-config.yaml"
+  #   ]
+    
+  loki:
+    image: grafana/loki:2.7.3
+    network_mode: "host"
+    command: -config.file=/etc/loki/local-config.yaml
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.6
+    network_mode: "host"
     environment:
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - discovery.type=single-node
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.6
+    network_mode: "host"
     environment:
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-    ports:
-      - "5601:5601"
+      ELASTICSEARCH_HOSTS: http://localhost:9200
     depends_on:
       - elasticsearch
-
-  otel-collector:
-    image: otel/opentelemetry-collector:latest
-    volumes:
-      - ./etc/otel-collector.yaml:/etc/otel-config.yaml
-    command: [
-      "--config=/etc/otel-config.yaml"
-    ]
-    depends_on:
-      - elasticsearch
-      - jaeger-collector
-
-  jaeger-collector:
-    image: jaegertracing/jaeger-opentelemetry-collector:latest
-    environment:
-      - SPAN_STORAGE_TYPE=elasticsearch
-    volumes:
-      - ./etc/otel-jaeger-collector.yaml:/config/config.yaml
-    command: [
-      "--config-file=/config/config.yaml",
-      "--es.server-urls=http://elasticsearch:9200",
-      "--es.num-shards=1"
-    ]
-    restart: on-failure
-    depends_on:
-      - elasticsearch
-
-  fluentd-api-otel:
-    build:
-      context: ./etc/fluentd
-    volumes:
-      - ./data/logs/api-otel-collector:/fluentd/log
-    restart: on-failure
-    depends_on:
-      - elasticsearch
-
-  fluentd-api-otel-jaeger:
-    build:
-      context: ./etc/fluentd
-    volumes:
-      - ./data/logs/api-otel-jaeger-collector:/fluentd/log
-    restart: on-failure
-    depends_on:
-      - elasticsearch
-
+    
   prometheus:
     image: prom/prometheus:latest
+    network_mode: "host"
     volumes:
       - ./etc/prometheus.yaml:/etc/prometheus.yaml
     entrypoint:
       - /bin/prometheus
       - --config.file=/etc/prometheus.yaml
-    ports:
-      - "9090:9090"
     depends_on:
       - api
-#      - volume_exporter
 
   grafana:
     image: grafana/grafana:7.4.0-ubuntu
+    network_mode: "host"
     volumes:
       - ./data/grafana-data/datasources:/etc/grafana/provisioning/datasources
       - ./data/grafana-data/dashboards-provisioning:/etc/grafana/provisioning/dashboards
@@ -157,7 +77,7 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
-    ports:
-      - "3000:3000"
+    links:
+      - loki
     depends_on:
       - prometheus

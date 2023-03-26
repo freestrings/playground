@@ -3,7 +3,7 @@ FROM azul/zulu-openjdk-alpine:11
 #FROM azul/zulu-openjdk-alpine:8
 
 ENV OTEL_AGENT_VERSION=0.17.0 \
-    OTEL_AGENT_JAR_FILE=opentelemetry-javaagent-all-0.17.0.jar \
+    OTEL_AGENT_JAR_FILE=opentelemetry-javaagent.jar \
     APP_HOME=/app \
     MIN_HEAP_SIZE="40M" MAX_HEAP_SIZE="512M" \
     JAVA_GC_ARGS="-XX:MinHeapFreeRatio=20 -XX:MaxHeapFreeRatio=40 -XX:+UseSerialGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90" \
